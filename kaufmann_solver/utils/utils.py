@@ -3,6 +3,7 @@ from math import sqrt
 from numpy import identity as I
 from numpy import tril, triu, dot
 from collections import Counter
+from operator import itemgetter
 
 
 def transposition_matrix(size, i, j):
@@ -92,6 +93,10 @@ def triangular_inversion(triang_arg):
     """Counts inversion of a triangular matrix (lower or upper).
 
         NOT TESTED PROPERLY
+        function trying to predict form of inversion and count it without heavy computations
+        SEE gauss atomic triangular matrix and it's block analog
+
+        NOT TESTED PROPERLY
         function also trying to predict power of nilpotence (atomic_number)
         of nilpotent matrix inside of an algorithm
 
@@ -121,7 +126,22 @@ def triangular_inversion(triang_arg):
     unitriang = dot(unitriang_maker, triang)
     nilpotent = unitriang - I(n)
 
+    # possibility of simple inversion prediction
     z = zip(nilpotent.nonzero()[0], nilpotent.nonzero()[1])
+    if z[0][0] > z[0][1]:
+        # lower triangular case
+        i_min = min(z, key=itemgetter(0))[0]
+        j_max = max(z, key=itemgetter(1))[1]
+        if i_min > j_max:
+            return dot(I(n) - nilpotent, unitriang_maker)
+    else:
+        # upper triangular case
+        i_max = max(z, key=itemgetter(0))[0]
+        j_min = min(z, key=itemgetter(1))[1]
+        if j_min > i_max:
+            return dot(I(n) - nilpotent, unitriang_maker)
+
+    # nilpotence power prediction
     atomic_number = len(Counter([column for (row, column) in z]))
 
     unitriang_inverse = I(n)
