@@ -104,7 +104,7 @@ def triangular_inversion(triang_arg):
         triang_arg (np.array): triangular matrix for inversion
 
     Returns:
-        np.matrix: inverse of triangular matrix
+        np.array: inverse of triangular matrix
 
     Raises:
         Exception: An error occurred while passing non-square matrix

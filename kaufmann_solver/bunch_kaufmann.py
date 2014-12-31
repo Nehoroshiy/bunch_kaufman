@@ -50,7 +50,7 @@ def bunch_kaufmann(mtx_origin, alpha):
         # conjugate M' with permutation matrix
         mtxs[:,:] = dot(dot(permutation, mtxs), permutation.T)[:,:]
 
-        #P = permutation_step.dot(P).dot(np.matrix(permutation_step).getI())
+        P = dot(P, permutation_step)
         # find index for larger column abs and this abs
         [lambda_val, idx] = max([(abs(mtxs[j][0]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))
         if abs(mtxs[0][0]) >= alpha*lambda_val:
@@ -110,7 +110,7 @@ def bunch_kaufmann(mtx_origin, alpha):
         print 'TRIANGULAR_STEP'
         print triangular_step
         print '-'*80, '\n', '-'*80
-        P = P.dot(permutation_step.T).dot(triangular_inversion(triangular_step))
+        P = dot(dot(P, permutation_step.T), triangular_inversion(triangular_step))
         print P
         sum += n_k
         cell_sizes.append(n_k)

@@ -8,8 +8,8 @@ from math import sqrt
 
 
 
-#mtx = hilb(5)
-mtx = np.loadtxt('matrix.txt')
+mtx = hilb(10)
+#mtx = np.loadtxt('matrix.txt')
 #mtx = np.loadtxt('test_tridiagonal.txt')
 
 etalon = mtx.copy()
