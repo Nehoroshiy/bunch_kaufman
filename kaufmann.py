@@ -16,13 +16,13 @@ etalon = mtx.copy()
 
 open("result.txt", "w").write(str(mtx))
 
-stripped_matrix, PL, cell_sizes = bunch_kaufmann(mtx, (1.0 + sqrt(17.0))/8)
+stripped_matrix, P, L, cell_sizes = bunch_kaufmann(mtx, (1.0 + sqrt(17.0))/8)
 
 print 'Matrix:'
 print etalon
 print '-'*80
 print 'Check:'
-result = PL.dot(stripped_matrix).dot(np.matrix(PL).getH())
+result = P.dot(L).dot(stripped_matrix).dot(np.matrix(P.dot(L)).getH())
 print result
 print cell_sizes
 print '-'*80
@@ -33,7 +33,7 @@ print stripped_matrix
 print stripped_matrix.nonzero()
 print '-'*80
 print 'And PL matrix:'
-print PL
+print P.dot(L)
 
 
 print etalon.shape

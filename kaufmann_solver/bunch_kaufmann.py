@@ -2,23 +2,36 @@ import numpy as np
 from numpy import identity as I, dot
 from kaufmann_solver.utils.utils import transposition_matrix, separate_permutation, triangular_inversion
 from operator import itemgetter
+from math import sqrt
 
 
-def inv_1_2(mtx):
-    if mtx.shape == (1, 1):
-        if mtx[0, 0] == 0:
+def inverse_1_2(small_matrix):
+    """Performs inverse of small matrices of size 1 or 2 by simple formulas
+
+    Args:
+        small_matrix (np.array): matrix for inverse searching
+
+    Returns:
+        np.array: inverse of small matrix
+
+    Raises:
+        Exception: An error occurred because matrix is not 1x1 or 2x2
+        Exception: An error occurred because matrix of size 1x1 or 2x2 is singular
+    """
+    if small_matrix.shape == (1, 1):
+        if small_matrix[0, 0] == 0:
             raise Exception('Matrix of size 1x1 is singular')
-        return np.array([[1.0/mtx[0, 0]]])
-    if mtx.shape != (2, 2):
+        return np.array([[1.0/small_matrix[0, 0]]])
+    if small_matrix.shape != (2, 2):
         raise Exception("Matrix isn't 2x2 matrix")
-    a = mtx[0, 0]
-    b = mtx[0, 1]
-    c = mtx[1, 0]
-    d = mtx[1, 1]
+    a = small_matrix[0, 0]
+    b = small_matrix[0, 1]
+    c = small_matrix[1, 0]
+    d = small_matrix[1, 1]
     det = a*d - b*c
     if det == 0:
         raise Exception('Matrix of size 2x2 is singular')
-    inverse = np.zeros(mtx.shape)
+    inverse = np.zeros(small_matrix.shape)
     inverse[0, 0] = d/det
     inverse[0, 1] = -c/det
     inverse[1, 0] = -b/det
@@ -26,19 +39,44 @@ def inv_1_2(mtx):
     return inverse
 
 
-def bunch_kaufmann(mtx_origin, alpha):
+def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17))/8):
+    """Performs Bunch-Kaufman factorization of self-conjugate matrix A:
+        A = P L T L^* P^t,
+        P - permutation matrix,
+        L - lower triangular matrix,
+        T - tridiagonal matrix
+
+    Args:
+        mtx_origin (np.array): matrix for factorization
+        alpha (float): tuning coefficient for Bunch-Kaufmann algorithm, 0 < alpha < 1
+        in practice best value of alpha is (1. + sqrt(17))/8
+
+    Returns:
+        np.array: tridiagonal symmetric matrix T
+        np.array: permutation matrix P
+        np.array: lower triangular matrix L
+        list: list of block sizes of cells in T
+
+    Raises:
+        Exception: An error occurred because alpha goes beyond the range (0, 1)
+        Exception: An error occurred while passing non-2D-matrix argument
+        Exception: An error occurred while passing non-square matrix
+        Exception: An error occurred while passing non-self-conjugate matrix
+    """
+    if alpha <= 0 or alpha >= 1:
+        raise Exception("alpha must be in range (0, 1), but alpha = " + str(alpha))
     if len(mtx_origin.shape) != 2:
         raise Exception("Matrix isn't 2D")
     if mtx_origin.shape[0] != mtx_origin.shape[1]:
         raise Exception('Square matrix expected, matrix of shape ' + str(mtx_origin.shape) + ' is given')
-    if not np.array_equal(mtx_origin.T, mtx_origin):
-        raise Exception('Symmetric matrix expected')
+    if not np.array_equal(np.array(np.matrix(mtx_origin).getH()), mtx_origin):
+        raise Exception('Self-conjugate matrix expected')
     mtx = mtx_origin.copy()
     
     n = mtx.shape[0]
     sum = 0
     cell_sizes = []
-    L, P = I(n), I(n)
+    PL = I(n)
     while sum < n:
         mtxs = mtx[sum: n, sum: n]
         idx = max([(abs(mtxs[j][j]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))[1]
@@ -50,7 +88,7 @@ def bunch_kaufmann(mtx_origin, alpha):
         # conjugate M' with permutation matrix
         mtxs[:,:] = dot(dot(permutation, mtxs), permutation.T)[:,:]
 
-        P = dot(P, permutation_step)
+        PL = dot(PL, permutation_step)
         # find index for larger column abs and this abs
         [lambda_val, idx] = max([(abs(mtxs[j][0]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))
         if abs(mtxs[0][0]) >= alpha*lambda_val:
@@ -83,72 +121,43 @@ def bunch_kaufmann(mtx_origin, alpha):
                     permutation[:,:] = dot(transposition_matrix(mtxs.shape[0], 2, idx), transposition_matrix(mtxs.shape[0], 1, j_idx))[:,:]
         mtxs_image = np.dot(np.dot(permutation, mtxs), permutation)
         T_k = mtxs_image[0:n_k, 0:n_k]
-        #T_k_inverse = np.matrix(T_k.copy()).getI()
-        T_k_inverse = inv_1_2(T_k)
+        T_k_inverse = inverse_1_2(T_k)
         B_k = mtxs_image[n_k: mtxs_image.shape[0], 0: n_k]
 
         triangular[n_k:triangular.shape[0], 0:n_k] = -B_k.dot(T_k_inverse)
 
-        #mtxs[:,:] = triangular.dot(permutation).dot(mtxs).dot(permutation.T).dot(np.matrix(triangular).getH())[:,:]
         mtxs[:,:] = dot(dot(dot(dot(triangular, permutation), mtxs), permutation.T), np.matrix(triangular).getH())[:,:]
-        print '-'*80
-        print "M':"
-        print mtxs
-        print '-'*80
-
-        """print 'Get inversion of:'
-        print triangular_step
-        print 'Inversion is'
-        inv = -triangular_step + 2*np.identity(triangular_step.shape[0])
-        print inv
-        print 'Check(T * T^-1):'
-        print triangular_step.dot(inv)
-        print 'And (T^-1 * T):'
-        print inv.dot(triangular_step)"""
-
-        print '-'*80, '\n', '-'*80
-        print 'TRIANGULAR_STEP'
-        print triangular_step
-        print '-'*80, '\n', '-'*80
-        P = dot(dot(P, permutation_step.T), triangular_inversion(triangular_step))
-        print P
+        PL = dot(dot(PL, permutation_step.T), triangular_inversion(triangular_step))
         sum += n_k
         cell_sizes.append(n_k)
-    print '-'*80
-    print P.dot(mtx).dot(np.matrix(P).getH())
-    return mtx, P, cell_sizes
+    P, L = separate_permutation(PL)
+    return mtx, P, L, cell_sizes
 
 
 def linear_system_solve(system_matrix_origin, free_values, alpha):
+    """Solves linear system with Bunch-Kaufman factorization.
+
+        To solve system Ax = b, we need to solve next systems:
+        Lz = P^t b,
+        Tw = z,
+        L^* y = w,
+        x = Py
+
+    Args:
+        system_matrix_origin (np.array): matrix of linear system
+        free_values (np.array): vector of free values
+        alpha (float): tuning coefficient for Bunch-Kaufmann algorithm
+
+    Returns:
+        np.array: solution of system
+
+    Raises:
+        Exception: An error occurred while passing non-square matrix
+        Exception: An error occurred while passing non-triangular matrix
+        Exception: An error occurred while passing singular matrix
+    """
     system_matrix = system_matrix_origin.copy()
-    tridiagonal, PL, cell_sizes = bunch_kaufmann(system_matrix, alpha)
-    P, L = separate_permutation(PL)
-    print '-'*80
-    print 'Tridiagonal'
-    print tridiagonal
-    print '-'*80
-    print 'Permutation'
-    print P
-    print '-'*80
-    print 'Low-triangular'
-    print L
-    print '-'*80
-    print 'Matrix:'
-    print system_matrix
-    print '-'*80
-    print 'with bunch kaufmann:'
-    print P.dot(L).dot(tridiagonal).dot(np.matrix(L).getH()).dot(P.T)
-    print '-'*80
-
-
-    """
-    We need to solve some systems:
-    Lz = P^t b,
-    Tw = z,
-    L^* y = w,
-    x = Py
-    """
-
+    tridiagonal, P, L, cell_sizes = bunch_kaufmann(system_matrix, alpha)
     z = np.linalg.solve(L, P.T.dot(free_values))
     w = np.linalg.solve(tridiagonal, z)
     y = np.linalg.solve(np.matrix(L).getH(), w)
