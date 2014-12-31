@@ -1,20 +1,23 @@
 import numpy as np
-from kaufmann_solver.utils.utils import transposition_matrix, separate_permutation
+from numpy import identity as I, dot
+from kaufmann_solver.utils.utils import transposition_matrix, separate_permutation, triangular_inversion
 from operator import itemgetter
+
 
 def inv_1_2(mtx):
     if mtx.shape == (1, 1):
-        assert mtx[0, 0] != 0, "matrix is null-determinant"
+        if mtx[0, 0] == 0:
+            raise Exception('Matrix of size 1x1 is singular')
         return np.array([[1.0/mtx[0, 0]]])
-    assert mtx.shape == (2, 2), "matrix isn't 2x2 matrix"
+    if mtx.shape != (2, 2):
+        raise Exception("Matrix isn't 2x2 matrix")
     a = mtx[0, 0]
     b = mtx[0, 1]
     c = mtx[1, 0]
     d = mtx[1, 1]
     det = a*d - b*c
-    assert det != 0, 'matrix is null-determinant'
-    print 'det:', det
-
+    if det == 0:
+        raise Exception('Matrix of size 2x2 is singular')
     inverse = np.zeros(mtx.shape)
     inverse[0, 0] = d/det
     inverse[0, 1] = -c/det
@@ -22,70 +25,75 @@ def inv_1_2(mtx):
     inverse[1, 1] = a/det
     return inverse
 
-def bunch_kaufmann(mtx, alpha):
-    # make identity L matrix
-    L = transposition_matrix(mtx.shape[0], 0, 0)
-    # make identity global permutation matrix
-    P = transposition_matrix(mtx.shape[0], 0, 0)
+
+def bunch_kaufmann(mtx_origin, alpha):
+    if len(mtx_origin.shape) != 2:
+        raise Exception("Matrix isn't 2D")
+    if mtx_origin.shape[0] != mtx_origin.shape[1]:
+        raise Exception('Square matrix expected, matrix of shape ' + str(mtx_origin.shape) + ' is given')
+    if not np.array_equal(mtx_origin.T, mtx_origin):
+        raise Exception('Symmetric matrix expected')
+    mtx = mtx_origin.copy()
+    
+    n = mtx.shape[0]
     sum = 0
     cell_sizes = []
-    while sum < mtx.shape[0]:
-        # i-th step of algorithm: we work with n[i]-th mtx_shiffer
-        mtx_shiffer = mtx[sum: mtx.shape[0], sum: mtx.shape[1]]
-        # find index with largest diagonal abs
-        idx = max([(abs(mtx_shiffer[j][j]), j) for j in xrange(mtx_shiffer.shape[0])], key=itemgetter(0))[1]
-        # make permutation matrix for (0, idx) transposition
-        permutation_step = transposition_matrix(mtx.shape[0], sum, sum + idx)
-        permutation = permutation_step[sum: mtx.shape[0], sum: mtx.shape[1]]
-        # make triangular matrix
-        triangular_step = transposition_matrix(mtx.shape[0], 0, 0)
-        triangular = triangular_step[sum: mtx.shape[0], sum: mtx.shape[1]]
+    L, P = I(n), I(n)
+    while sum < n:
+        mtxs = mtx[sum: n, sum: n]
+        idx = max([(abs(mtxs[j][j]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))[1]
+
+        permutation_step = transposition_matrix(n, sum, sum + idx)
+        permutation = permutation_step[sum: n, sum: n]
+        triangular_step = I(n)
+        triangular = triangular_step[sum: n, sum: n]
         # conjugate M' with permutation matrix
-        mtx_shiffer[:,:] = np.array(permutation.dot(np.matrix(mtx_shiffer)).dot(np.matrix(permutation).getI()))
+        mtxs[:,:] = dot(dot(permutation, mtxs), permutation.T)[:,:]
 
         #P = permutation_step.dot(P).dot(np.matrix(permutation_step).getI())
         # find index for larger column abs and this abs
-        [lambda_val, idx] = max([(abs(mtx_shiffer[j][0]), j) for j in xrange(mtx_shiffer.shape[0])], key=itemgetter(0))
-        if abs(mtx_shiffer[0][0]) >= alpha*lambda_val:
+        [lambda_val, idx] = max([(abs(mtxs[j][0]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))
+        if abs(mtxs[0][0]) >= alpha*lambda_val:
             n_k = 1
             if mtx.shape[0] <= sum + n_k:
                 cell_sizes.append(n_k)
                 break
-            permutation[:,:] = transposition_matrix(mtx_shiffer.shape[0], 0, 0)[:,:]
+            permutation[:,:] = I(mtxs.shape[0])[:,:]
         else:
-            [sigma_val, j_idx] = max([(abs(mtx_shiffer[j][idx]), j) for j in xrange(mtx_shiffer.shape[0]) if j != idx], key=itemgetter(0))
-            if sigma_val*abs(mtx_shiffer[0][0]) >= alpha*lambda_val**2:
+            [sigma_val, j_idx] = max([(abs(mtxs[j][idx]), j) for j in xrange(mtxs.shape[0]) if j != idx], key=itemgetter(0))
+            if sigma_val*abs(mtxs[0][0]) >= alpha*lambda_val**2:
                 n_k = 1
                 if mtx.shape[0] <= sum + n_k:
                     cell_sizes.append(n_k)
                     break
-                permutation[:,:] = transposition_matrix(mtx_shiffer.shape[0], 0, 0)[:,:]
+                permutation[:,:] = I(mtxs.shape[0])[:,:]
             else:
-                if abs(mtx_shiffer[idx][idx]) >= alpha*sigma_val:
+                if abs(mtxs[idx][idx]) >= alpha*sigma_val:
                     n_k = 1
                     if mtx.shape[0] <= sum + n_k:
                         cell_sizes.append(n_k)
                         break
-                    permutation[:,:] = transposition_matrix(mtx_shiffer.shape[0], 0, idx)[:,:]
+                    permutation[:,:] = transposition_matrix(mtxs.shape[0], 0, idx)[:,:]
 
                 else:
                     n_k = 2
                     if mtx.shape[0] <= sum + n_k:
                         cell_sizes.append(n_k)
                         break
-                    permutation[:,:] = transposition_matrix(mtx_shiffer.shape[0], 2, idx).dot(transposition_matrix(mtx_shiffer.shape[0], 1, j_idx))[:,:]
-        mtx_shiffer_image = np.dot(np.dot(permutation, mtx_shiffer), permutation)
-        T_k = mtx_shiffer_image[0:n_k, 0:n_k]
+                    permutation[:,:] = dot(transposition_matrix(mtxs.shape[0], 2, idx), transposition_matrix(mtxs.shape[0], 1, j_idx))[:,:]
+        mtxs_image = np.dot(np.dot(permutation, mtxs), permutation)
+        T_k = mtxs_image[0:n_k, 0:n_k]
         #T_k_inverse = np.matrix(T_k.copy()).getI()
         T_k_inverse = inv_1_2(T_k)
-        B_k = mtx_shiffer_image[n_k: mtx_shiffer_image.shape[0], 0: n_k]
+        B_k = mtxs_image[n_k: mtxs_image.shape[0], 0: n_k]
 
         triangular[n_k:triangular.shape[0], 0:n_k] = -B_k.dot(T_k_inverse)
 
-        mtx_shiffer[:,:] = triangular.dot(permutation).dot(mtx_shiffer).dot(permutation.T).dot(np.matrix(triangular).getH())[:,:]
+        #mtxs[:,:] = triangular.dot(permutation).dot(mtxs).dot(permutation.T).dot(np.matrix(triangular).getH())[:,:]
+        mtxs[:,:] = dot(dot(dot(dot(triangular, permutation), mtxs), permutation.T), np.matrix(triangular).getH())[:,:]
         print '-'*80
         print "M':"
-        print mtx_shiffer
+        print mtxs
         print '-'*80
 
         """print 'Get inversion of:'
@@ -98,10 +106,16 @@ def bunch_kaufmann(mtx, alpha):
         print 'And (T^-1 * T):'
         print inv.dot(triangular_step)"""
 
-        P = P.dot(permutation_step.T).dot(-triangular_step + 2*np.identity(triangular_step.shape[0]))
+        print '-'*80, '\n', '-'*80
+        print 'TRIANGULAR_STEP'
+        print triangular_step
+        print '-'*80, '\n', '-'*80
+        P = P.dot(permutation_step.T).dot(triangular_inversion(triangular_step))
         print P
         sum += n_k
         cell_sizes.append(n_k)
+    print '-'*80
+    print P.dot(mtx).dot(np.matrix(P).getH())
     return mtx, P, cell_sizes
 
 
@@ -135,14 +149,7 @@ def linear_system_solve(system_matrix_origin, free_values, alpha):
     x = Py
     """
 
-    # solve first system to find z
     z = np.linalg.solve(L, P.T.dot(free_values))
-    print 'z:', z
-    # solve second system to find w
     w = np.linalg.solve(tridiagonal, z)
-    print 'w:', w
-    # solve third system to find y
     y = np.linalg.solve(np.matrix(L).getH(), w)
-    print 'y:', y
-    # return the result (P*y)
     return P.dot(y)
