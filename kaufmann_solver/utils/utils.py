@@ -6,6 +6,18 @@ from collections import Counter
 from operator import itemgetter
 
 
+def euclid_vector_norm(vector):
+    if len(vector.shape) != 1:
+        raise Exception('vector must have 1 dimension!')
+    s = sum([x**2 for x in vector])
+    return sqrt(s)
+
+def relative_error(original_vector, computed_vector):
+    if euclid_vector_norm(original_vector) == 0:
+        raise Exception('Original vector must have non-zero norm')
+    return euclid_vector_norm(original_vector - computed_vector) / euclid_vector_norm(original_vector)
+
+
 def transposition_matrix(size, i, j):
     """Creates transposition matrix of given size with given row and column transposition indices.
 
@@ -134,15 +146,21 @@ def triangular_inversion(triang_arg):
         j_max = max(z, key=itemgetter(1))[1]
         if i_min > j_max:
             return dot(I(n) - nilpotent, unitriang_maker)
+        else:
+            atomic_number = len(set([column for (row, column) in z]))
+            #atomic_number = len(Counter([column for (row, column) in z]))
     else:
         # upper triangular case
         i_max = max(z, key=itemgetter(0))[0]
         j_min = min(z, key=itemgetter(1))[1]
         if j_min > i_max:
             return dot(I(n) - nilpotent, unitriang_maker)
+        else:
+            atomic_number = len(set([row for (row, column) in z]))
 
     # nilpotence power prediction
-    atomic_number = len(Counter([column for (row, column) in z]))
+    # not sure that it will work for U instead of L
+    #atomic_number = len(Counter([column for (row, column) in z]))
 
     unitriang_inverse = I(n)
     for i in xrange(atomic_number):
