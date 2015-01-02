@@ -1,16 +1,4 @@
-#include <stdlib.h>
-#include <math.h>
-#include <iostream>
-#include <cstring>
-#include <utility>
-#include <vector>
-#include "vector_kaufman.h"
-#include "matrix_kaufman.h"
-#include "tests.h"
-
-#define TOLERANCE 1e-13L
-
-#define NORMALIZE_WITH_TOLERANCE
+#include "bunch_kaufman.h"
 
 double normalize(double val) {
     if (fabs(val) < TOLERANCE) return 0.0;
@@ -60,7 +48,7 @@ Matrix inverse_1_2(Matrix &small_matrix) {
     return inverse;
 }
 
-void bunch_kaufman(Matrix &matrix, Matrix &PL, double alpha=(1.0 + sqrt(17)) / 8) {
+void bunch_kaufman(Matrix &matrix, Matrix &PL, double alpha) {
     //print_matrix(matrix, "initial matrix");
     auto N = matrix.dim();
     auto sum = 0;
@@ -340,28 +328,4 @@ std::vector<int> distinct_permutation_and_lower_triangular(Matrix &PL) {
     }
     PL.permute_rows(permutation);
     return permutation_inverted;
-}
-
-int main() {
-    auto SIZE = 102;
-    auto m = hilbert_matrix(SIZE);
-    auto PL = Matrix::I(SIZE);
-    bunch_kaufman(m, PL);
-    print_matrix(PL, "PL matrix");
-    auto permutation = distinct_permutation_and_lower_triangular(PL);
-
-    //std::cout << m[2][2] << std::endl;
-    print_matrix(m, "tridiagonal_matrix");
-    print_matrix(PL, "L matrix");
-    print_vector<int>(permutation);
-
-    auto PL_T = PL.transpose();
-    auto permutation_T = permutation_transpose(permutation);
-    auto check_matrix = PL * m * PL_T;
-    check_matrix.permute_rows(permutation);
-    check_matrix.permute_columns(permutation_T);
-    print_matrix(check_matrix, "check matrix");
-    auto hilb = hilbert_matrix(SIZE);
-    std::cout << "Frobenius norm: " << (check_matrix - hilb).frobenius_norm() << std::endl; 
-    return 0;
 }

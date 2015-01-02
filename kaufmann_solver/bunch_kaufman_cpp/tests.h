@@ -1,3 +1,6 @@
+#ifndef TESTS_H
+#define TESTS_H
+
 #include <iostream>     // std::cout, std::fixed
 #include <iomanip>      // std::setprecision
 #include <string>
@@ -43,3 +46,5 @@ void print_straight_line(int length) {
 	line[length] = 0;
 	std::cout << line << std::endl;
 }
+
+#endif
