@@ -1,5 +1,5 @@
 import numpy as np
-np.set_printoptions(precision=5, suppress=True)
+np.set_printoptions(precision=15, suppress=True)
 
 from kaufmann_solver.utils.utils import frobenius_norm, relative_error
 from tests.algorithm_tuner import vizualize_bunch_kaufman_tune, get_optimal_alpha
@@ -10,7 +10,7 @@ from math import sqrt
 
 
 
-mtx = hilb(5)
+mtx = hilb(20)
 #mtx = np.loadtxt('matrix.txt')
 #mtx = np.loadtxt('test_tridiagonal.txt')
 
@@ -20,6 +20,7 @@ open("result.txt", "w").write(str(mtx))
 
 stripped_matrix, P, L, cell_sizes = bunch_kaufmann(mtx, (1.0 + sqrt(17.0))/8)
 
+print ", ".join(map(lambda t: str(t), stripped_matrix.diagonal()))
 print 'Matrix:'
 print etalon
 print '-'*80
@@ -43,7 +44,9 @@ print result.shape
 
 print frobenius_norm(etalon - result)
 
+#print frobenius_norm(etalon - np.random.random([101, 101]))
 
+"""
 print '\n'*7
 print '-'*80
 
@@ -56,21 +59,21 @@ print 'Determinant of matrix'
 print np.linalg.det(mtx)
 print 'Vector of free variables'
 print free_variables
-
-kaufmann_result = symmetric_system_solve(mtx, free_variables)
-print 'Kaufmann linear solver:'
-print mtx.dot(kaufmann_result), free_variables
-print 'frobenius norm of difference:'
+"""
+#kaufmann_result = symmetric_system_solve(mtx, free_variables)
+#print 'Kaufmann linear solver:'
+#print mtx.dot(kaufmann_result), free_variables
+#print 'frobenius norm of difference:'
 #print kaufmann_result.shape, free_variables.shape
-print sqrt(sum([(first - second)**2 for (first, second) in zip(kaufmann_result, free_variables)]))
-print '-'*80
-print '\n'
+#print sqrt(sum([(first - second)**2 for (first, second) in zip(kaufmann_result, free_variables)]))
+#print '-'*80
+#print '\n'
 
-ordinary_result = np.linalg.solve(mtx, free_variables)
-print 'Ordinary linear solver:'
-print mtx.dot(ordinary_result), free_variables
-print 'frobenius norm of difference:'
-print sqrt(sum([(first - second)**2 for (first, second) in zip(ordinary_result, free_variables)]))
+#ordinary_result = np.linalg.solve(mtx, free_variables)
+#print 'Ordinary linear solver:'
+#print mtx.dot(ordinary_result), free_variables
+#print 'frobenius norm of difference:'
+#print sqrt(sum([(first - second)**2 for (first, second) in zip(ordinary_result, free_variables)]))
 #print frobenius_norm(kaufmann_result - ordinary_result)
 
 #mtx = hilb(8)
@@ -90,7 +93,7 @@ print sqrt(sum([(first - second)**2 for (first, second) in zip(ordinary_result, 
 #print alpha_optimal, (1.0 + sqrt(17))/8
 
 #vizualize_bunch_kaufman_tune(hilb(50), 5)
-hilbert_matrix_test(100)
+#hilbert_matrix_test(100)
 
 """for i in xrange(5, 100, 1):
     original_result = np.zeros(i) + 1

@@ -8,10 +8,9 @@ class Matrix;
 //#include "matrix_kaufman.h"
 
 class Vector {
-private:
+public:
     size_t _dim;
     double *data;
-public:
     Vector();
     explicit Vector(size_t N);
     Vector(const Vector &v);

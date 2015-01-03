@@ -1,5 +1,61 @@
 #include "vector_kaufman.h"
 #include "matrix_kaufman.h"
+#include "tests.h"
+
+void matrix_multiplication(double * __restrict__ A, double * __restrict__ B, double * __restrict__ C, size_t N) {
+    for (size_t i = 0; i < N; i++)
+        for (size_t j = 0; j < N; j++)
+            for (size_t k = 0; k < N; k++)
+                C[i * N + j] += A[i * N + k] * B[k * N + j];
+    //std::cout << "matrix_multiplication:" << std::endl;
+    //print_matrix(A, N, "A");
+    //print_matrix(B, N, "B");
+    //print_matrix(C, N, "C");
+}
+
+void matrix_trans_multiplication(double * __restrict__ A, double * __restrict__ B, double * __restrict__ C, size_t N) {
+    for (size_t i = 0; i < N; i++) {
+        double *row_a = A + i * N;
+        double *row_c = C + i * N;
+        double temp[N];
+        memset(temp, 0, sizeof(double) * N);
+        for (size_t j = 0; j < N; j++) {
+            double *row_b = B + j * N;
+            for (size_t k = 0; k < N; k++)
+                temp[j] += row_a[k] * row_b[k];
+        }
+        //std::cout << "temp[" << i << "]:" << std::endl;
+        //for (int t = 0; t < N; t++)
+        //    std::cout << std::setw(5) << temp[t];
+        //std::cout << std::endl;
+        memcpy(row_c, temp, sizeof(double) * N);
+    }
+    //std::cout << "matrix_trans_multiplication:" << std::endl;
+    //print_matrix(A, N, "A");
+    //print_matrix(B, N, "B");
+    //print_matrix(C, N, "C");
+}
+
+double *matrix_transpose(double *A, size_t N) {
+    double *transp = new double[N * N];
+    memset(transp, 0, sizeof(double) * N * N);
+    for (size_t i = 0; i < N; i++)
+        for (size_t j = 0; j < N; j++)
+            transp[i * N + j] = A[j * N + i];
+    return transp;
+}
+
+double *matrix_conjugation(double *A, double *B, size_t N) {
+    double *BA = new double[N * N];
+    memset(BA, 0, sizeof(double) * N * N);
+    matrix_multiplication(B, A, BA, N);
+    double *CONJ = new double[N * N];
+    memset(CONJ, 0, sizeof(double) * N * N);
+    matrix_trans_multiplication(BA, B, CONJ, N);
+    delete [] BA;
+    return CONJ;
+}
+
 
 Matrix::Matrix(size_t N) {
     matrix = new double[N * N];
@@ -14,8 +70,18 @@ Matrix::Matrix(const Matrix &m) {
     memcpy(matrix, m.matrix, sizeof(double) * N * N);
 }
 
+Matrix::Matrix(double *data, size_t N) {
+    matrix = data;
+    _dim = N;
+}
+
+void Matrix::reject() {
+    matrix = nullptr;
+    _dim = 0;
+}
+
 Matrix::~Matrix() {
-    delete [] matrix;
+    if (matrix) delete [] matrix;
 }
 
 Matrix Matrix::transpose() {
@@ -61,17 +127,17 @@ Matrix Matrix::operator -(Matrix &m) {
     auto C = Matrix(*this);
     for (size_t i = 0; i < N; i++)
         for (size_t j = 0; j < N; j++)
-            C[i][j] += m[i][j];
+            C[i][j] -= m[i][j];
     return C;
 }
 
 std::pair<double, int> Matrix::max_in_row(int row_num, int start, int end, bool non_diagonal) {
     if (end == 0) end = _dim;
-    auto max = -DBL_MAX;
-    auto idx = 0;
-    for (size_t i = start; i < end; i++) {
+    auto max = -fabs((*this)[row_num][start]);
+    auto idx = start;
+    for (size_t i = start + 1; i < end; i++) {
         if (non_diagonal && row_num == i) continue;
-        if ((*this)[row_num][i] > max) {
+        if (fabs((*this)[row_num][i]) > max) {
             idx = i;
             max = (*this)[row_num][i];
         }
@@ -81,13 +147,13 @@ std::pair<double, int> Matrix::max_in_row(int row_num, int start, int end, bool 
 
 std::pair<double, int> Matrix::max_in_column(int column_num, int start, int end, bool non_diagonal) {
     if (end == 0) end = _dim;
-    auto max = -DBL_MAX;
-    auto idx = 0;
-    for (size_t i = start; i < end; i++) {
+    auto max = fabs((*this)[start][column_num]);
+    auto idx = start;
+    for (size_t i = start + 1; i < end; i++) {
         if (non_diagonal && column_num == i) continue;
-        if ((*this)[i][column_num] > max) {
+        if (fabs((*this)[i][column_num]) > max) {
             idx = i;
-            max = (*this)[i][column_num];
+            max = fabs((*this)[i][column_num]);
         }
     }
     return std::pair<double, int>(max, idx);
@@ -95,12 +161,12 @@ std::pair<double, int> Matrix::max_in_column(int column_num, int start, int end,
 
 std::pair<double, int> Matrix::max_in_diagonal(int start, int end) {
     if (end == 0) end = _dim;
-    auto max = -DBL_MAX;
-    auto idx = 0;
-    for (size_t i = start; i < end; i++) {
-        if ((*this)[i][i] > max) {
+    auto max = fabs((*this)[start][start]);
+    auto idx = start;
+    for (size_t i = start + 1; i < end; i++) {
+        if (fabs((*this)[i][i]) > max) {
             idx = i;
-            max = (*this)[i][i];
+            max = fabs((*this)[i][i]);
         }
     }
     return std::pair<double, int>(max, idx);
@@ -118,13 +184,13 @@ void Matrix::exchange_columns(int s, int t) {
     if (s == t) return;
     double temp[_dim];
     for (size_t i = 0; i < _dim; i++) {
-        temp[i] = (*this)[s][i];
+        temp[i] = (*this)[i][s];
     }
     for (size_t i = 0; i < _dim; i++) {
-        (*this)[s][i] = (*this)[t][i];
+        (*this)[i][s] = (*this)[i][t];
     }
     for (size_t i = 0; i < _dim; i++) {
-        (*this)[t][i] = temp[i];
+        (*this)[i][t] = temp[i];
     }
 }
 
@@ -193,6 +259,24 @@ double Matrix::frobenius_norm() {
         for (size_t j = 0; j < _dim; j++)
             sum += (*this)[i][j] * (*this)[i][j];
     return sqrt((double)sum);
+}
+
+double Matrix::frobenius_norm_exact() {
+    return double_frobenius_norm_raw(matrix, _dim);
+}
+
+double Matrix::norm() {
+    size_t N = _dim;
+    double max_row = -DBL_MAX;
+    double temp;
+    for (size_t i = 0; i < N; i++) {
+        temp = 0.0;
+        for (size_t j = 0; j < N; j++) {
+            temp += fabs((*this)[i][j]);
+        }
+        if (temp > max_row) max_row = temp;
+    }
+    return max_row;
 }
 
 Matrix Matrix::I(size_t N) {

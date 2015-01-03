@@ -78,9 +78,6 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
     sum = 0
     cell_sizes = []
     PL = I(n)
-    TT = I(n)
-    PT = I(n)
-    LT = I(n)
     while sum < n:
         mtxs = mtx[sum: n, sum: n]
         idx = max([(abs(mtxs[j][j]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))[1]
@@ -93,8 +90,6 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
         mtxs[:, :] = dot(dot(permutation, mtxs), permutation.T)[:, :]
 
         PL = dot(PL, permutation_step)
-        #TT = dot(TT, permutation_step)
-        PT = dot(PT, permutation_step)
         # find index for larger column abs and this abs
         [lambda_val, idx] = max([(abs(mtxs[j][0]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))
         if abs(mtxs[0][0]) >= alpha * lambda_val:
@@ -125,27 +120,21 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
                     if mtx.shape[0] <= sum + n_k:
                         cell_sizes.append(n_k)
                         break
-                    permutation[:, :] = dot(transposition_matrix(mtxs.shape[0], 2, idx),
-                                            transposition_matrix(mtxs.shape[0], 1, j_idx))[:, :]
+                        ###!!!
+                    permutation[:, :] = dot(transposition_matrix(mtxs.shape[0], 1, idx),
+                                            transposition_matrix(mtxs.shape[0], 0, j_idx))[:, :]
         mtxs_image = np.dot(np.dot(permutation, mtxs), permutation.T)
         T_k = mtxs_image[0:n_k, 0:n_k]
         T_k_inverse = inverse_1_2(T_k)
         B_k = mtxs_image[n_k: mtxs_image.shape[0], 0: n_k]
         triangular[n_k:triangular.shape[0], 0:n_k] = -B_k.dot(T_k_inverse)
-        PT1, LT1 = separate_permutation(dot(LT, permutation_step.T))
-        PT = dot(PT, PT1)
-        LT = dot(LT1, dot(PT, triangular_inversion(triangular_step)))
 
         mtxs[:, :] = dot(dot(dot(dot(triangular, permutation), mtxs), permutation.T), np.matrix(triangular).getH())[:,:]
         PL = dot(dot(PL, permutation_step.T), triangular_inversion(triangular_step))
+        #PL = dot(dot(permutation_step.T, triangular_inversion(triangular_step)), PL)
         sum += n_k
         cell_sizes.append(n_k)
     P, L = separate_permutation(PL)
-    print '-'*80
-    print PT
-    print '-'*80
-    print LT
-    print '-'*80
     print P
     print '-'*80
     print L

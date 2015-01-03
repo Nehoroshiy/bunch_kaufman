@@ -14,7 +14,7 @@ Vector::Vector(const Vector &v) {
 }
 
 Vector::~Vector() {
-    delete [] data;
+    if (data) delete [] data;
 }
 
 double &Vector::operator [](size_t i) {

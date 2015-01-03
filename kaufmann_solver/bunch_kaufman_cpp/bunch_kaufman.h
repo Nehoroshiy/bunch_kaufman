@@ -9,10 +9,11 @@
 #include <vector>
 #include "vector_kaufman.h"
 #include "matrix_kaufman.h"
+#include "tests.h"
 
 #define TOLERANCE 1e-13L
 
-#define NORMALIZE_WITH_TOLERANCE
+//#define NORMALIZE_WITH_TOLERANCE
 
 double normalize(double val);
 
@@ -24,8 +25,8 @@ std::vector<int> compose_permutations(std::vector<int> &outer, std::vector<int> 
 
 Matrix inverse_1_2(Matrix &small_matrix);
 
-void bunch_kaufman(Matrix &matrix, Matrix &PL, double alpha=(1.0 + sqrt(17)) / 8);
+void bunch_kaufman(double *input_matrix, double *pl_factor, size_t N, double alpha=(1.0 + sqrt(17)) / 8);
 
-std::vector<int> distinct_permutation_and_lower_triangular(Matrix &PL);
+std::vector<int> distinct_permutation_and_lower_triangular(double *PL, size_t N);
 
 #endif
