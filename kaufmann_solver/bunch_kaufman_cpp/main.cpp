@@ -1,75 +1,45 @@
-#include "bunch_kaufman.h"
+#include "linear_solvers.h"
 #include "tests.h"
 
-int main() {
-    /*auto SIZE = 20;
-    double *m = hilbert_matrix(SIZE);
-    double *PL = identity_matrix(SIZE);
-    bunch_kaufman(m, PL, SIZE);
-    print_matrix(PL, SIZE, "PL matrix");
-    auto permutation = distinct_permutation_and_lower_triangular(PL, SIZE);
-    print_matrix(m, SIZE, "tridiagonal_matrix");
-    print_matrix(PL, SIZE, "L matrix");
-    print_vector<int>(permutation);
-    auto permutation_T = permutation_transpose(permutation);
-    double *check_matrix = matrix_conjugation(m, PL, SIZE);
-    Matrix check_matrix_wrapper = Matrix(check_matrix, SIZE);
-    check_matrix_wrapper.permute_rows(permutation);
-    check_matrix_wrapper.permute_columns(permutation_T);
-    print_matrix(check_matrix, SIZE, "check_matrix");
-    Matrix hilb = Matrix(hilbert_matrix(SIZE), SIZE);
-    std::cout << "Frobenius norm: " << (check_matrix_wrapper - hilb).frobenius_norm() << std::endl;
-    check_matrix_wrapper.reject();*/
-
-    auto SIZE = 300;
-    double *m = hilbert_matrix(SIZE);
-    double *PL = identity_matrix(SIZE);
+int main(int argc, char **argv) {
+    auto N = 10;
+    if (argc == 2)
+        N = atoi(argv[1]);
+    //auto N = 12;
+    Vector original_result = Vector::I(N);
+    /*for (int i = 0; i < N; i++)
+        original_result[i] = i + 1;*/
+    std::cout << "orig: [";
+    for (int i = 0; i < N; i++) {
+        std::cout << original_result[i] << " ";
+    }
+    std::cout << "]" << std::endl;
     
-    bunch_kaufman(m, PL, SIZE);
-    double *check_matrix = matrix_conjugation(m, PL, SIZE);
-    Matrix check_matrix_wrapper = Matrix(check_matrix, SIZE);
-    //print_matrix(check_matrix, SIZE, "check_matrix");
-    Matrix hilb = Matrix(hilbert_matrix(SIZE), SIZE);
-    std::cout << "Frobenius norm: " << (check_matrix_wrapper - hilb).frobenius_norm() << std::endl;
-    //std::cout << "Frobenius norm: " << (check_matrix_wrapper - hilb).frobenius_norm_exact() << std::endl;
-    std::cout << "Row norm: " << (check_matrix_wrapper - hilb).norm() << std::endl;
-    check_matrix_wrapper.reject();
+    Matrix hilbert_wrapper = hilbert_matrix_m(N);
+    Vector free_variables = hilbert_wrapper * original_result;
+    std::cout << "free_variables: [";
+    for (int i = 0; i < N; i++) {
+        std::cout << free_variables[i] << " ";
+    }
+    std::cout << "]" << std::endl;
+    bunch_kaufman_solve(hilbert_wrapper.matrix, free_variables.data, N);
 
-    
-    /*
-    auto SIZE = 10;
-    double *A = new double[SIZE * SIZE];
-    double *B = new double[SIZE * SIZE];
-    for (int i = 0; i < SIZE; i++)
-        for (int j = 0; j < SIZE; j++)
-            A[i * SIZE + j] = B[i * SIZE + j] = 1.0;
-    //double *A = identity_matrix(SIZE);
-    //double *B = identity_matrix(SIZE);
-    double *C = matrix_conjugation(A, B, SIZE);
-    print_matrix(C, SIZE, "NNN");
-    */
-    
-
-    /*auto SIZE = 10;
-    auto m = hilbert_matrix(SIZE);
-    auto M = Matrix(m, SIZE);
-    auto PL = Matrix::I(SIZE);
-    bunch_kaufman(m, PL.matrix, SIZE);
-    print_matrix(PL.matrix, SIZE, "PL matrix");
-    auto permutation = distinct_permutation_and_lower_triangular(PL);
-
-    //std::cout << m[2][2] << std::endl;
-    print_matrix(m, SIZE, "tridiagonal_matrix");
-    print_matrix(PL.matrix, SIZE, "L matrix");
-    print_vector<int>(permutation);
-
-    auto PL_T = PL.transpose();
-    auto permutation_T = permutation_transpose(permutation);
-    auto check_matrix = PL * M * PL_T;
-    check_matrix.permute_rows(permutation);
-    check_matrix.permute_columns(permutation_T);
-    print_matrix_m(check_matrix, "check matrix");
-    auto hilb = Matrix(hilbert_matrix(SIZE), SIZE);
-    std::cout << "Frobenius norm: " << (check_matrix - hilb).frobenius_norm() << std::endl;*/ 
+    std::cout << "solution: [";
+    for (int i = 0; i < N; i++) {
+        std::cout << free_variables[i] << " ";
+    }
+    std::cout << "]" << std::endl;
+    auto delta = (original_result - free_variables);
+    std::cout << "delta: [";
+    for (int i = 0; i < N; i++) {
+        std::cout << delta[i] << " ";
+    }
+    std::cout << "]" << std::endl;
+    auto relative_error = (original_result - free_variables).euclid_norm() / original_result.euclid_norm();
+    std::cout << (original_result - free_variables).euclid_norm() << "::" << original_result.euclid_norm() << std::endl;
+    std::cout << "Relative_error: " << relative_error << std::endl;
+    //auto min_size = 5;
+    //auto max_size = 300;
+    //bunch_kaufmann_full_test(min_size, max_size, "bunch_kaufman_full_test.txt");
     return 0;
 }

@@ -13,16 +13,67 @@ Vector::Vector(const Vector &v) {
     memcpy(data, v.data, sizeof(double) * v.dim());
 }
 
+Vector::Vector(double *some_data, size_t N) {
+    data = some_data;
+    _dim = N;
+}
+
+double *Vector::reject() {
+    double *saved = data;
+    data = nullptr;
+    _dim = 0;
+    return saved;
+}
+
 Vector::~Vector() {
     if (data) delete [] data;
 }
 
-double &Vector::operator [](size_t i) {
+double &Vector::operator [](size_t i) const {
     return data[i];
 }
 
 int Vector::dim() const {
     return (int)_dim;
+}
+
+Vector Vector::operator -() const {
+    Vector result = Vector(*this);
+    for (size_t i = 0; i < _dim; i++)
+        result[i] = -(*this)[i];
+    return result;
+}
+Vector Vector::operator +(Vector &v) const {
+    Vector result = Vector(*this);
+    for (size_t i = 0; i < _dim; i++)
+        result[i] += v[i];
+    return result;
+}
+Vector Vector::operator -(Vector &v) const {
+    Vector result = Vector(*this);
+    for (size_t i = 0; i < _dim; i++)
+        result[i] -= v[i];
+    return result;
+}
+
+Vector Vector::operator -(Vector &&v) const {
+    Vector result = Vector(*this);
+    for (size_t i = 0; i < _dim; i++)
+        result[i] -= v[i];
+    return result;
+}
+
+void Vector::operator =(Vector &v) {
+    //assert(_dim == v._dim);
+    memcpy(data, v.data, sizeof(double) * v.dim());
+}
+
+void Vector::operator =(Vector &&v) {
+    //assert(_dim == v._dim);
+    data = v.data;
+    _dim = v._dim;
+    v.data = nullptr;
+    v._dim = 0;
 }
 
 Vector Vector::operator *(Matrix &m) {

@@ -14,13 +14,21 @@ public:
     Vector();
     explicit Vector(size_t N);
     Vector(const Vector &v);
+    Vector(double *some_data, size_t N);
+    double *reject();
     ~Vector();
 
     int dim() const;
 
-    double &operator [](size_t i);
+    double &operator [](size_t i) const;
+    Vector operator -() const;
+    Vector operator +(Vector &v) const;
+    Vector operator -(Vector &v) const;
+    Vector operator -(Vector &&v) const;
     Vector operator *(Matrix &m);
     double operator *(Vector &v);
+    void operator =(Vector &v);
+    void operator =(Vector &&v);
     void scale(double alpha);
     double euclid_norm();
 

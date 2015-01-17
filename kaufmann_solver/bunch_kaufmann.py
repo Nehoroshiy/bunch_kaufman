@@ -131,6 +131,8 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
 
         mtxs[:, :] = dot(dot(dot(dot(triangular, permutation), mtxs), permutation.T), np.matrix(triangular).getH())[:,:]
         PL = dot(dot(PL, permutation_step.T), triangular_inversion(triangular_step))
+        print 'PL:'
+        print PL
         #PL = dot(dot(permutation_step.T, triangular_inversion(triangular_step)), PL)
         sum += n_k
         cell_sizes.append(n_k)
@@ -244,7 +246,7 @@ def honest_bunch_kaufman(mtx_origin, alpha=(1. + sqrt(17)) / 8):
     return mtx, P, L, cell_sizes
 
 
-def symmetric_system_solve_without_refinement(system_matrix_origin, free_values, alpha):
+def symmetric_system_solve_without_refinement(system_matrix_origin, free_values, alpha=(1. + sqrt(17)) / 8):
     """Solves linear system with Bunch-Kaufman factorization.
 
         To solve system Ax = b, we need to solve next systems:
@@ -281,5 +283,5 @@ def symmetric_system_solve(system_matrix_origin, free_values, alpha=(1. + sqrt(1
     while euclid_vector_norm(residual) >= eps:
         computed_result += symmetric_system_solve_without_refinement(system_matrix_origin, residual, alpha)
         #print relative_error(np.zeros(len(free_values)) + 1, computed_result)
-        residual = free_values - computed_result
+        residual = free_values - dot(system_matrix_origin, computed_result)
     return computed_result

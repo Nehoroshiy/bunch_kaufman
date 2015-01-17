@@ -2,6 +2,25 @@
 #include "matrix_kaufman.h"
 #include "tests.h"
 
+double *zero_matrix(size_t N) {
+    double *matrix = new double[N * N];
+    memset(matrix, 0, N * N * sizeof(double));
+    return matrix;
+}
+
+double *identity_matrix(size_t N) {
+    double *matrix = zero_matrix(N);
+    for (size_t i = 0; i < N; i++)
+        matrix[i * N + i] = 1.0;
+    return matrix;
+}
+
+double *copy_matrix(double *A, size_t N) {
+    double *matrix = new double[N * N];
+    memcpy(matrix, A, N * N * sizeof(double));
+    return matrix;
+}
+
 void matrix_multiplication(double * __restrict__ A, double * __restrict__ B, double * __restrict__ C, size_t N) {
     for (size_t i = 0; i < N; i++)
         for (size_t j = 0; j < N; j++)
@@ -75,9 +94,11 @@ Matrix::Matrix(double *data, size_t N) {
     _dim = N;
 }
 
-void Matrix::reject() {
+double *Matrix::reject() {
+    double *saved = matrix;
     matrix = nullptr;
     _dim = 0;
+    return saved;
 }
 
 Matrix::~Matrix() {
@@ -115,10 +136,13 @@ Vector Matrix::operator *(Vector &v) {
     auto N = this->dim();
     auto result = Vector::zeros(N);
 
-    for (size_t i = 0; i < N; i++)
+    for (size_t i = 0; i < N; i++) {
+        long double temp = 0.0;
         for (size_t j = 0; j < N; j++) {
-            result[i] += (*this)[i][j] * v[j];
+            temp += static_cast<long double>((*this)[i][j]) * static_cast<long double>(v[j]);
         }
+        result[i] = static_cast<double>(temp);
+    }
     return result;
 }
 

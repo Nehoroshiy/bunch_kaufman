@@ -232,7 +232,7 @@ void bunch_kaufman(double *input_matrix, double *pl_factor, size_t N, double alp
             check_matrix_wrapper.reject();
             for (int ttt = 0; ttt < 3; ttt++) print_straight_line(50);*/
             //print_matrix(matrix, "tridiagonal matrix");
-            //print_matrix(PL, "PL");
+            print_matrix(pl_factor, N, "PL");
         } else {
             /*// simple case
             // form vector B_k
@@ -372,7 +372,7 @@ void bunch_kaufman(double *input_matrix, double *pl_factor, size_t N, double alp
             check_matrix_wrapper.reject();
             for (int ttt = 0; ttt < 3; ttt++) print_straight_line(50);*/
             //print_matrix(matrix, "tridiagonal matrix");
-            //print_matrix(PL, "PL");
+            print_matrix(pl_factor, N, "PL");
         }
     }
     //print_matrix(matrix, "tridiagonal matrix");
@@ -382,6 +382,7 @@ void bunch_kaufman(double *input_matrix, double *pl_factor, size_t N, double alp
 }
 
 std::vector<int> distinct_permutation_and_lower_triangular(double *PL, size_t N) {
+    print_matrix(PL, N, "PL initial");
     Matrix PL_M = Matrix(PL, N);
     auto permutation = std::vector<int>(N);
     auto permutation_inverted = std::vector<int>(N);
@@ -394,10 +395,10 @@ std::vector<int> distinct_permutation_and_lower_triangular(double *PL, size_t N)
                 break;
             }
         }
-        permutation[i] = real_index;
-        permutation_inverted[real_index] = i;
+        permutation[real_index] = i;
+        permutation_inverted[i] = real_index;
     }
-    PL_M.permute_rows(permutation);
+    PL_M.permute_rows(permutation_inverted);
     PL_M.reject();
-    return permutation_inverted;
+    return permutation;
 }

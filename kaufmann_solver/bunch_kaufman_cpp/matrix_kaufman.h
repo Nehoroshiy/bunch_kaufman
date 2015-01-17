@@ -11,6 +11,10 @@
 
 class Vector;
 
+double *identity_matrix(size_t N);
+double *zero_matrix(size_t N);
+double *copy_matrix(double *A, size_t N);
+
 void matrix_multiplication(double * __restrict__ A, double * __restrict__ B, double * __restrict__ C, size_t N);
 
 void matrix_trans_multiplication(double * __restrict__ A, double * __restrict__ B, double * __restrict__ C, size_t N);
@@ -27,7 +31,7 @@ public:
     explicit Matrix(size_t N);
     Matrix(const Matrix &m);
     Matrix(double *data, size_t N);
-    void reject();
+    double *reject();
     ~Matrix();
 
     Matrix transpose();

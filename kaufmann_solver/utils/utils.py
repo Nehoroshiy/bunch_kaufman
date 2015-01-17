@@ -95,8 +95,14 @@ def separate_permutation(PL):
     if not all(len(x) == 1 for x in by_index):
         raise Exception("Matrix isn't PL")
 
+    # ??????????????
     for [(i, j)] in by_index:
         permutation[i][j] = 1
+
+    TL = permutation.dot(PL)
+    print TL
+    #print permutation.dot(TL)
+    #print PL
 
     return permutation, permutation.T.dot(PL)
 
