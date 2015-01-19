@@ -130,119 +130,14 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
         triangular[n_k:triangular.shape[0], 0:n_k] = -B_k.dot(T_k_inverse)
 
         mtxs[:, :] = dot(dot(dot(dot(triangular, permutation), mtxs), permutation.T), np.matrix(triangular).getH())[:,:]
-        PL = dot(dot(PL, permutation_step.T), triangular_inversion(triangular_step))
-        print 'PL:'
-        print PL
-        #PL = dot(dot(permutation_step.T, triangular_inversion(triangular_step)), PL)
+        # For gaussian atomic matrix M inverse(M) = -M + 2I, I is identity matrix
+        PL = dot(dot(PL, permutation_step.T), -triangular_step + 2*I(n))
         sum += n_k
         cell_sizes.append(n_k)
     P, L = separate_permutation(PL)
     print P
     print '-'*80
     print L
-    return mtx, P, L, cell_sizes
-
-
-def swap_rows(matrix, trans_list):
-    for (idx1, idx2) in trans_list:
-        matrix[[idx1, idx2], :] = matrix[[idx2, idx1], :]
-
-
-def swap_columns(matrix, trans_list):
-    for (idx1, idx2) in trans_list:
-        matrix[:, [idx1, idx2]] = matrix[:, [idx2, idx1]]
-
-
-def trans_list_view(trans_list, view_idx):
-    return map(lambda (idx1, idx2): (idx1 - view_idx, idx2 - view_idx), trans_list)
-
-
-def list_T(trans_list):
-    return map(lambda (idx1, idx2): (idx2, idx1), trans_list)
-
-
-def honest_bunch_kaufman(mtx_origin, alpha=(1. + sqrt(17)) / 8):
-    if alpha <= 0 or alpha >= 1:
-        raise Exception("alpha must be in range (0, 1), but alpha = " + str(alpha))
-    if len(mtx_origin.shape) != 2:
-        raise Exception("Matrix isn't 2D")
-    if mtx_origin.shape[0] != mtx_origin.shape[1]:
-        raise Exception('Square matrix expected, matrix of shape ' + str(mtx_origin.shape) + ' is given')
-    if not np.array_equal(np.array(np.matrix(mtx_origin).getH()), mtx_origin):
-        raise Exception('Self-conjugate matrix expected')
-    mtx = mtx_origin.copy()
-
-    n = mtx.shape[0]
-    sum = 0
-    cell_sizes = []
-    PL = I(n)
-    while sum < n:
-        mtxs = mtx[sum: n, sum: n]
-        idx = max([(abs(mtxs[j][j]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))[1]
-
-        permutation_step = [(sum, sum + idx)]
-        permutation = trans_list_view(permutation_step, sum)
-        #permutation = permutation_step[sum: n, sum: n]
-        triangular_step = I(n)
-        triangular = triangular_step[sum: n, sum: n]
-        # conjugate M' with permutation matrix
-        swap_rows(mtxs, permutation)
-        swap_columns(mtxs, list_T(permutation))
-        #mtxs[:, :] = dot(dot(permutation, mtxs), permutation.T)[:, :]
-
-        #PL = dot(PL, permutation_step)
-        swap_columns(PL, permutation)
-        # find index for larger column abs and this abs
-        [lambda_val, idx] = max([(abs(mtxs[j][0]), j) for j in xrange(mtxs.shape[0])], key=itemgetter(0))
-        if abs(mtxs[0][0]) >= alpha * lambda_val:
-            n_k = 1
-            if mtx.shape[0] <= sum + n_k:
-                cell_sizes.append(n_k)
-                break
-            permutation = []
-        else:
-            [sigma_val, j_idx] = max([(abs(mtxs[j][idx]), j) for j in xrange(mtxs.shape[0]) if j != idx],
-                                     key=itemgetter(0))
-            if sigma_val * abs(mtxs[0][0]) >= alpha * lambda_val ** 2:
-                n_k = 1
-                if mtx.shape[0] <= sum + n_k:
-                    cell_sizes.append(n_k)
-                    break
-                permutation = []
-            else:
-                if abs(mtxs[idx][idx]) >= alpha * sigma_val:
-                    n_k = 1
-                    if mtx.shape[0] <= sum + n_k:
-                        cell_sizes.append(n_k)
-                        break
-                    permutation = [(0, idx)]
-                else:
-                    n_k = 2
-                    if mtx.shape[0] <= sum + n_k:
-                        cell_sizes.append(n_k)
-                        break
-                    permutation = [(2, idx), (1, j_idx)]
-        swap_rows(mtxs, permutation)
-        swap_columns(mtxs, list_T(permutation))
-        T_k = mtxs[0:n_k, 0:n_k]
-        T_k_inverse = inverse_1_2(T_k)
-        B_k = mtxs[n_k: mtxs.shape[0], 0: n_k]
-
-        """mtxs_image = np.dot(np.dot(permutation, mtxs), permutation)
-        T_k = mtxs_image[0:n_k, 0:n_k]
-        T_k_inverse = inverse_1_2(T_k)
-        B_k = mtxs_image[n_k: mtxs_image.shape[0], 0: n_k]
-        """
-        triangular[n_k:triangular.shape[0], 0:n_k] = -B_k.dot(T_k_inverse)
-        triangular_block = triangular[::-1, 0:n_k]
-
-        swap_columns(triangular, permutation)
-
-        mtxs[:, :] = dot(dot(dot(dot(triangular, permutation), mtxs), permutation.T), np.matrix(triangular).getH())[:,:]
-        PL = dot(dot(PL, permutation_step.T), triangular_inversion(triangular_step))
-        sum += n_k
-        cell_sizes.append(n_k)
-    P, L = separate_permutation(PL)
     return mtx, P, L, cell_sizes
 
 
@@ -277,11 +172,28 @@ def symmetric_system_solve_without_refinement(system_matrix_origin, free_values,
 
 
 def symmetric_system_solve(system_matrix_origin, free_values, alpha=(1. + sqrt(17)) / 8, eps=1e-9):
+    """Solves linear system with Bunch-Kaufman factorization and simple error correction.
+
+        We solve system Ax = b, and take x_computed. Then, we find err = (b - A*x_computed),
+        make error correction x_computed += err, and iterates while err > EPSILON
+
+    Args:
+        system_matrix_origin (np.array): matrix of linear system
+        free_values (np.array): vector of free values
+        alpha (float): tuning coefficient for Bunch-Kaufman algorithm
+        eps (float): precision factor of an iterative refinement
+
+    Returns:
+        np.array: solution of system
+
+    Raises:
+        Exception: An error occurred while passing non-square matrix
+        Exception: An error occurred while passing non-triangular matrix
+        Exception: An error occurred while passing singular matrix
+    """
     computed_result = symmetric_system_solve_without_refinement(system_matrix_origin, free_values, alpha)
-    #print relative_error(np.zeros(len(free_values)) + 1, computed_result)
     residual = free_values - dot(system_matrix_origin, computed_result)
     while euclid_vector_norm(residual) >= eps:
         computed_result += symmetric_system_solve_without_refinement(system_matrix_origin, residual, alpha)
-        #print relative_error(np.zeros(len(free_values)) + 1, computed_result)
         residual = free_values - dot(system_matrix_origin, computed_result)
     return computed_result

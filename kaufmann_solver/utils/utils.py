@@ -12,6 +12,7 @@ def euclid_vector_norm(vector):
     s = sum([x**2 for x in vector])
     return sqrt(s)
 
+
 def relative_error(original_vector, computed_vector):
     if euclid_vector_norm(original_vector) == 0:
         raise Exception('Original vector must have non-zero norm')
@@ -95,14 +96,8 @@ def separate_permutation(PL):
     if not all(len(x) == 1 for x in by_index):
         raise Exception("Matrix isn't PL")
 
-    # ??????????????
     for [(i, j)] in by_index:
         permutation[i][j] = 1
-
-    TL = permutation.dot(PL)
-    print TL
-    #print permutation.dot(TL)
-    #print PL
 
     return permutation, permutation.T.dot(PL)
 
@@ -171,12 +166,4 @@ def triangular_inversion(triang_arg):
     unitriang_inverse = I(n)
     for i in xrange(atomic_number):
         unitriang_inverse = I(n) - dot(nilpotent, unitriang_inverse)
-
-    """
-    print '-'*80
-    print 'check (Tr * Tr^-1):'
-    print dot(triang, dot(unitriang_inverse, unitriang_maker))
-    print '-'*80
-    """
-
     return dot(unitriang_inverse, unitriang_maker)
