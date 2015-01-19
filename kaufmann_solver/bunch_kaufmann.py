@@ -120,7 +120,6 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
                     if mtx.shape[0] <= sum + n_k:
                         cell_sizes.append(n_k)
                         break
-                        ###!!!
                     permutation[:, :] = dot(transposition_matrix(mtxs.shape[0], 1, idx),
                                             transposition_matrix(mtxs.shape[0], 0, j_idx))[:, :]
         mtxs_image = np.dot(np.dot(permutation, mtxs), permutation.T)
@@ -135,9 +134,9 @@ def bunch_kaufmann(mtx_origin, alpha=(1. + sqrt(17)) / 8):
         sum += n_k
         cell_sizes.append(n_k)
     P, L = separate_permutation(PL)
-    print P
-    print '-'*80
-    print L
+    #print P
+    #print '-'*80
+    #print L
     return mtx, P, L, cell_sizes
 
 

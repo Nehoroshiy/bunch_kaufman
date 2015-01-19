@@ -2,11 +2,22 @@ import numpy as np
 from math import sqrt
 from numpy import identity as I
 from numpy import tril, triu, dot
-from collections import Counter
 from operator import itemgetter
 
 
 def euclid_vector_norm(vector):
+    """Counts Euclid norm of a given vector.
+
+    Args:
+         (np.array): vector for norm counting
+
+    Returns:
+        float: Euclid norm of a vector
+
+    Raises:
+        Exception: An error occurred while passing non-vector object
+
+    """
     if len(vector.shape) != 1:
         raise Exception('vector must have 1 dimension!')
     s = sum([x**2 for x in vector])
@@ -14,6 +25,23 @@ def euclid_vector_norm(vector):
 
 
 def relative_error(original_vector, computed_vector):
+    """Counts Euclid norm of a given vector.
+
+    Args:
+         (np.array): vector for norm counting
+
+    Returns:
+        float: Euclid norm of a vector
+
+    Raises:
+        Exception: An error occurred while passing non-vector object to first or second arg
+        Exception: An error occurred while passing vectors with different shapes
+        Exception: An error occurred while passing zero-norm original vector
+    """
+    if len(original_vector.shape) != 1 or len(computed_vector.shape) != 1:
+        raise Exception('vectors must have 1 dimension!')
+    if original_vector.shape != computed_vector.shape:
+        raise Exception('vectors must have equal shapes!')
     if euclid_vector_norm(original_vector) == 0:
         raise Exception('Original vector must have non-zero norm')
     return euclid_vector_norm(original_vector - computed_vector) / euclid_vector_norm(original_vector)
