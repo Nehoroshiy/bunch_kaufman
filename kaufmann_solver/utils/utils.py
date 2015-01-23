@@ -1,7 +1,7 @@
 import numpy as np
 from math import sqrt
 from numpy import identity as I
-from numpy import tril, triu, dot
+from numpy import tril, triu, dot, float128 as f128
 from operator import itemgetter
 
 
@@ -98,7 +98,11 @@ def frobenius_norm(matrix):
     return sqrt(sum)
 
 
-def separate_permutation(PL):
+def max_pseudo_norm(matrix):
+    return abs(matrix).max()
+
+
+def separate_permutation(PL, dtype=np.float64):
     """Separates permutation matrix P and lower triangular matrix L from their multiply PL.
 
     Args:
@@ -112,7 +116,7 @@ def separate_permutation(PL):
         Exception: An error occurred while passing non-PL matrix
 
     """
-    permutation = np.zeros(PL.shape)
+    permutation = np.zeros(PL.shape, dtype=dtype)
     z = zip(PL.nonzero()[0], PL.nonzero()[1])
     by_index = [[] for _ in xrange(PL.shape[0])]
     for (i, j) in z:
