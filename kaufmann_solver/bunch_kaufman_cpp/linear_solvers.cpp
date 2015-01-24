@@ -116,14 +116,14 @@ void bunch_kaufman_solve(double *A, double *b, size_t N) {
     Vector computed_wrapper = Vector(b, N);
     bunch_kaufman_solve_without_refinement(
         P, L, tri_a, tri_b, tri_c, L_STAR, P_T, b, N);
-    residual_wrapper = origin_wrapper - system_matrix_wrapper * computed_wrapper;
+    /*residual_wrapper = origin_wrapper - system_matrix_wrapper * computed_wrapper;
     while (residual_wrapper.euclid_norm()) {
         bunch_kaufman_solve_without_refinement(
             P, L, tri_a, tri_b, tri_c, L_STAR, P_T, residual_wrapper.data, N);
         for (size_t i = 0; i < N; i++)
             computed_wrapper[i] += residual_wrapper[i];
         residual_wrapper = origin_wrapper - system_matrix_wrapper * computed_wrapper;
-    }
+    }*/
 
     system_matrix_wrapper.reject();
     origin_wrapper.reject();

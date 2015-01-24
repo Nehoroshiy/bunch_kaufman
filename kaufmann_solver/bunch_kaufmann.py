@@ -1,5 +1,5 @@
 import numpy as np
-np.set_printoptions(precision=19, suppress=True, linewidth=160)
+np.set_printoptions(precision=3, suppress=True, linewidth=200)
 from scipy import linalg, sparse
 from numpy import identity as I, dot
 from kaufmann_solver.utils.utils import transposition_matrix, separate_permutation, triangular_inversion, \
@@ -140,7 +140,7 @@ def partial_right_two(matrix, v1, v2, i1, i2):
         matrix[i, low_bound:] += mul1[i] * v1 + mul2[i] * v2
 
 
-def bunch_kaufman_copy(mtx_origin, alpha=(1. + sqrt(17)) / 8):
+def bunch_kaufman_copy(mtx_origin, alpha=(1. + sqrt(17)) / 8, regular_coefficient=1e-4):
     mtx = np.array(mtx_origin, dtype=f128)
     n = mtx.shape[0]
     tridiagonal = np.zeros([3, n], dtype=f128)
@@ -246,6 +246,9 @@ def bunch_kaufman_copy(mtx_origin, alpha=(1. + sqrt(17)) / 8):
         #mtx_view[:, :] = dot(dot(triangular_view, mtx_view), np.matrix(triangular_view).getH())[:, :]
         #PL = dot(PL, -triangular + 2*I(n))
         #print PL
+        """for (i, j) in zip(*mtx_view.nonzero()):
+            if mtx_view[i, j] < regular_coefficient:
+                mtx_view[i, j] = mtx_view[j, i] = regular_coefficient * (1.0 + np.random.random())"""
         sum += n_k
         cell_sizes.append(n_k)
     P, L = separate_permutation(PL, dtype=f128)
@@ -254,6 +257,19 @@ def bunch_kaufman_copy(mtx_origin, alpha=(1. + sqrt(17)) / 8):
     #print A.todense()
     #print '-'*80
     #print mtx
+    regular_coefficient = 1e-4
+    regular_coefficient2 = 1e-4 + 1e-5
+    from random import random
+    for w, (i, j) in enumerate(zip(*tridiagonal.nonzero())):
+        if tridiagonal[i, j] < regular_coefficient:
+            tridiagonal[i, j] = regular_coefficient if w % 2 else regular_coefficient2
+            #tridiagonal[i, j] *= 10*random()
+    for i in xrange(n):
+        if tridiagonal[1, i] == 0:
+            tridiagonal[1, i] = regular_coefficient
+    #for i in xrange(n):
+    #    tridiagonal[1, i] *= 1.5
+
     return mtx, P, L, cell_sizes, tridiagonal
 
 
@@ -363,9 +379,11 @@ def symmetric_system_solve_without_refinement(P, L, tridiagonal, free_values, al
 
 def symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha=(1. + sqrt(17)) / 8):
     z = linalg.solve_triangular(L, P.T.dot(free_values), lower=True, unit_diagonal=True)
+    print tridiagonal
     w = linalg.solve_banded((1, 1), tridiagonal, z)
-    tri_inv = tridiagonal_inversion(tridiagonal, cell_sizes, dtype=f128)
-    w1 = tridiagonal_dot(tri_inv, z, dtype=f128)
+    #tri_inv = tridiagonal_inversion(tridiagonal, cell_sizes, dtype=f128)
+    #w1 = tridiagonal_dot(tri_inv, z, dtype=f128)
+
     """print '-'*80
     print 'w:'
     print w
@@ -374,7 +392,7 @@ def symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha=(1.
     print 'HOW ABOUT DELTA?'
     print euclid_vector_norm(w - w1)
     print '-'*80"""
-    y = linalg.solve_triangular(np.matrix(L, dtype=f128).getH(), w1, lower=False, unit_diagonal=True)
+    y = linalg.solve_triangular(np.matrix(L, dtype=f128).getH(), w, lower=False, unit_diagonal=True)
     return P.dot(y)
 
 
@@ -428,17 +446,20 @@ def symmetric_system_solve(system_matrix_origin, free_values, alpha=(1. + sqrt(1
         Exception: An error occurred while passing non-triangular matrix
         Exception: An error occurred while passing singular matrix
     """
+
     mtx, P, L, cell_sizes, tridiagonal = bunch_kaufman_copy(system_matrix_origin, alpha)
     computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha)
-    x1, k = conjugate_gradients_pract(np.array(system_matrix_origin, dtype=f128), free_values, computed_result)
+    diags = [1,0,-1]
+    T = sparse.spdiags(tridiagonal, diags, mtx.shape[0], mtx.shape[0], format='csc').todense()
+    assembled_result = dot(dot(dot(dot(P, L), T), np.matrix(L).getH()), P.T)
+    x1, k = conjugate_gradients_pract(np.array(assembled_result, dtype=f128), free_values, computed_result)
     print '-'*80
     print 'result:'
     print computed_result
     print 'and with refinement:'
-    print x1
-    print k, ' iterations needs'
+    #print x1
     print 'HOW ABOUT DELTA?'
-    print euclid_vector_norm(computed_result - x1)
+    #print euclid_vector_norm(computed_result - x1)
     print '-'*80
     return x1
     """mtx, P, L, cell_sizes, tridiagonal = bunch_kaufman_copy(system_matrix_origin, alpha)
@@ -481,13 +502,13 @@ def symmetric_system_solve_old(system_matrix_origin, free_values, alpha=(1. + sq
     """
     mtx, P, L, cell_sizes = bunch_kaufmann(system_matrix_origin, alpha)
     computed_result = symmetric_system_solve_without_refinement(P, L, mtx, free_values, alpha)
-    residual = free_values - dot(system_matrix_origin, computed_result)
+    """residual = free_values - dot(system_matrix_origin, computed_result)
     prev_norm = euclid_vector_norm(residual)
     while euclid_vector_norm(residual) >= eps:
         computed_result += symmetric_system_solve_without_refinement(P, L, mtx, residual, alpha)
         residual = free_values - dot(system_matrix_origin, computed_result)
         if prev_norm < euclid_vector_norm(residual):
-            break
+            break"""
     return computed_result
 
 
@@ -519,7 +540,7 @@ def conjugate_gradients(A, b, x0, tolerance=1e-16):
     return computed_result
 
 
-def conjugate_gradients_pract(A, b, x0, tolerance=1e-18):
+def conjugate_gradients_pract(A, b, x0, tolerance=1e-17):
     k = 0
     x = x0.copy()
     r = b - dot(A, x)
@@ -527,7 +548,6 @@ def conjugate_gradients_pract(A, b, x0, tolerance=1e-18):
     delta = tolerance * euclid_vector_norm(b)
     p = 0
     ro_m = 0
-    tau = 0
     while sqrt(ro_c) >= delta:
         k += 1
         if k == 1:
@@ -541,4 +561,31 @@ def conjugate_gradients_pract(A, b, x0, tolerance=1e-18):
         r -= mu * w
         ro_m = ro_c
         ro_c = dot(r, r)
+        if k > 50000:
+            break
+
+    return x, k
+
+
+def preconditioned_conjugate_gradients_diag(A, b, x0, tolerance=1e-17):
+    M = A.diagonal()
+    k = 0
+    r = b - dot(A, x0)
+    x = x0.copy()
+    z = M * r
+    z_prev = 0
+    r_prev = 0
+    while euclid_vector_norm(r) > tolerance:
+        k += 1
+        if k == 1:
+            p = z
+        else:
+            tau = dot(r, z) / dot(r_prev, z_prev)
+            p = z + tau * p
+        mu = dot(r, z) / dot(dot(p, A), p)
+        x -= mu * p
+        r_prev = r
+        r -= mu * dot(A, p)
+        z_prev = z
+        z = M * r
     return x, k
