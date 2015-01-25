@@ -128,6 +128,10 @@ def tridiagonal_inversion(tridiagonal, cell_sizes, dtype=np.float64):
     return inverse
 
 
+def permutation_and_lower():
+    pass
+
+
 def separate_permutation(PL, dtype=np.float64):
     """Separates permutation matrix P and lower triangular matrix L from their multiply PL.
 
@@ -156,5 +160,11 @@ def separate_permutation(PL, dtype=np.float64):
 
     for [(i, j)] in by_index:
         permutation[i][j] = 1
+    L = permutation.T.dot(PL)
+    #diag = L.diagonal()
+    #for i in xrange(PL.shape[0]):
+    #    L[i] /= diag[i]
+    #    print 'L modification:'
+    #    print L
 
-    return permutation, permutation.T.dot(PL)
+    return permutation, L

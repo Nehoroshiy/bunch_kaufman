@@ -22,7 +22,12 @@ def symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha=(1.
     return P.dot(y)
 
 
-def symmetric_system_solve(system_matrix_origin, free_values, alpha=(1. + sqrt(17)) / 8, regularize=False, refinement=False):
+def isPSD(A, tol=1e-8):
+  E,V = linalg.eigh(A)
+  return np.all(E > -tol)
+
+
+def symmetric_system_solve(system_matrix_origin, free_values_origin, alpha=(1. + sqrt(17)) / 8, precondition=False, regularize=False, refinement=False):
     """Solves linear system with Bunch-Kaufman factorization and simple error correction.
 
         We solve system Ax = b, and take x_computed. Then, we find err = (b - A*x_computed),
@@ -42,9 +47,29 @@ def symmetric_system_solve(system_matrix_origin, free_values, alpha=(1. + sqrt(1
         Exception: An error occurred while passing non-triangular matrix
         Exception: An error occurred while passing singular matrix
     """
-
-    P, L, cell_sizes, tridiagonal = bunch_kaufman(system_matrix_origin, alpha, regularize=regularize)
-    computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha)
+    n = system_matrix_origin.shape[0]
+    if precondition and isPSD(system_matrix_origin):
+        diag_l = np.zeros(n)
+        diag_r = np.zeros(n)
+        for i in xrange(n):
+            diag_l[i] = 1.0 / euclid_vector_norm(system_matrix_origin[:, i])
+            diag_r[i] = 1.0 / euclid_vector_norm(system_matrix_origin[i])
+        mtx = np.array(system_matrix_origin, dtype=f128)
+        free_values = np.array(free_values_origin, dtype=f128)
+        for i in xrange(n):
+            mtx[i] *= diag_l[i]
+        for i in xrange(n):
+            mtx[:, i] *= diag_r[i]
+            free_values[i] *= diag_l[i]
+        #free_values = dot(diag_l, free_values_origin)
+        mtx = (mtx + mtx.T) / 2
+        P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx, alpha, regularize=regularize)
+        computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha)
+        for i in xrange(n):
+            computed_result[i] *= diag_r[i]
+    else:
+        P, L, cell_sizes, tridiagonal = bunch_kaufman(system_matrix_origin, alpha, regularize=regularize)
+        computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values_origin, alpha)
     if refinement:
         diags = [1,0,-1]
         T = sparse.spdiags(tridiagonal, diags, P.shape[0], P.shape[0], format='csc').todense()

@@ -82,7 +82,7 @@ def extended_linear_solve_hilbert_test(max_size=50):
         res.write('\n')
 
 
-def factorization_test(mtx):
+def factorization_test(mtx, regularize=False):
     """Tests Bunch-Kaufman factorization for a given matrix.
 
         Test by factorizing it, restoring from factors and counting difference.
@@ -97,7 +97,7 @@ def factorization_test(mtx):
         Exception: An error occurred when Bunch-Kaufman doesn't work properly.
 
     """
-    P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx.copy())
+    P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx.copy(), regularize=regularize)
     if filter(lambda x: x != 1 and x != 2, cell_sizes):
         raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
     if not np.array_equal(L, np.tril(L)):
@@ -201,7 +201,7 @@ def numpy_test(mtx, original_solve=[]):
     boundline()
 
 
-def linear_solve_test(mtx, original_solve=[]):
+def linear_solve_test(mtx, precondition=False, regularize=False):
     """Tests Bunch-Kaufman-based symmetric system solver for a given matrix.
 
     Args:
@@ -215,16 +215,16 @@ def linear_solve_test(mtx, original_solve=[]):
         Exception: An error occurred when sizes of matrix and original solution doesn't fit.
 
     """
-    if not original_solve:
-        original_solve = np.zeros(mtx.shape[0]) + 1
-        original_solve_precision = np.zeros(mtx.shape[0], dtype=np.float128) + 1
+
+    original_solve = np.zeros(mtx.shape[0]) + 1
+    original_solve_precision = np.zeros(mtx.shape[0], dtype=np.float128) + 1
     if original_solve.shape[0] != mtx.shape[0]:
         raise Exception('Sizes of matrix and original solve must be equal!')
     mtx_precision = np.array(mtx, dtype=np.float128)
     free_variables = mtx.dot(original_solve)
     free_variables_precision = mtx_precision.dot(original_solve_precision)
 
-    kaufmann_result = symmetric_system_solve(mtx, np.array(free_variables_precision, dtype=np.float64))
+    kaufmann_result = symmetric_system_solve(mtx, np.array(free_variables_precision, dtype=np.float64), precondition=precondition, regularize=regularize)
 
     boundline()
     print 'This is linear symmetric system solver test.'
