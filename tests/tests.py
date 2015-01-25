@@ -1,9 +1,9 @@
 import numpy as np
-#np.set_printoptions(precision=2, suppress=True, linewidth=200)
-from numpy import dot
+from numpy import dot, float128 as f128
 from math import factorial
 from kaufmann_solver.utils.utils import frobenius_norm, euclid_vector_norm, max_pseudo_norm
-from kaufmann_solver.bunch_kaufmann import bunch_kaufman_copy, symmetric_system_solve, symmetric_system_solve_old
+from kaufmann_solver.bunch_kaufmann import bunch_kaufman
+from kaufmann_solver.linear_solver import symmetric_system_solve
 from scipy import sparse
 
 # hilbert matrix (Hij = 1/(i + j - 1))
@@ -44,20 +44,34 @@ def extended_factorization_test(mtx):
         res.write('hilb size:')
         res.write(str(i))
         res.write('\t\t')
-        tri, P, L, cell_sizes, tridiagonal = bunch_kaufman_copy(h.copy())
+        P, L, cell_sizes, tridiagonal = bunch_kaufman(h.copy())
         if filter(lambda x: x != 1 and x != 2, cell_sizes):
             raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
         if not np.array_equal(L, np.tril(L)):
             raise Exception('Bunch-Kaufman algo must make lower triangular matrix')
         diags = [1,0,-1]
         T = np.array(sparse.spdiags(tridiagonal, diags, i, i, format='csc').todense(), dtype=np.float128)
-        print 'difference between mtx and T:'
-        print frobenius_norm(tri - T)
-        print '-'*80
         assembled_result = dot(dot(dot(dot(P, L), T), np.array(np.matrix(L).getH())), P.T)
         res.write(str(frobenius_norm(h - assembled_result)))
         res.write('\n')
     res.close()
+
+
+def extended_linear_solve_test():
+    res = open("linear_res.txt", "w")
+    for i in xrange(10, 100, 1):
+        test_solution = np.ones(i, dtype=f128)
+        h = np.array(hilb(i), dtype=f128)
+        free_values = dot(h, test_solution)
+        res.write('hilb size:')
+        res.write(str(i))
+        res.write('\t\t')
+        x_without_regularize = symmetric_system_solve(h, free_values, regularize=False)
+        res.write(str(euclid_vector_norm(x_without_regularize - test_solution)))
+        res.write('\t\t')
+        x_with_regularize = symmetric_system_solve(h, free_values, regularize=True)
+        res.write(str(euclid_vector_norm(x_with_regularize - test_solution)))
+        res.write('\n')
 
 
 def factorization_test(mtx):
@@ -75,16 +89,13 @@ def factorization_test(mtx):
         Exception: An error occurred when Bunch-Kaufman doesn't work properly.
 
     """
-    tri, P, L, cell_sizes, tridiagonal = bunch_kaufman_copy(mtx.copy())
+    P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx.copy())
     if filter(lambda x: x != 1 and x != 2, cell_sizes):
         raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
     if not np.array_equal(L, np.tril(L)):
         raise Exception('Bunch-Kaufman algo must make lower triangular matrix')
     diags = [1,0,-1]
     T = sparse.spdiags(tridiagonal, diags, mtx.shape[0], mtx.shape[0], format='csc').todense()
-    print 'difference between mtx and T:'
-    print frobenius_norm(tri - T)
-    print '-'*80
     assembled_result = dot(dot(dot(dot(P, L), T), np.matrix(L).getH()), P.T)
     boundline()
     print 'This is Bunch-Kaufman test.'

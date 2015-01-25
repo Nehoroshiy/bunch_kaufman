@@ -102,38 +102,6 @@ def max_pseudo_norm(matrix):
     return abs(matrix).max()
 
 
-def separate_permutation(PL, dtype=np.float64):
-    """Separates permutation matrix P and lower triangular matrix L from their multiply PL.
-
-    Args:
-        PL (np.array): matrix for separation
-
-    Returns:
-        np.matrix: permutation matrix
-        np.matrix: lower triangular matrix
-
-    Raises:
-        Exception: An error occurred while passing non-PL matrix
-
-    """
-    permutation = np.zeros(PL.shape, dtype=dtype)
-    z = zip(PL.nonzero()[0], PL.nonzero()[1])
-    by_index = [[] for _ in xrange(PL.shape[0])]
-    for (i, j) in z:
-        by_index[i].append((i, j))
-
-    for t in xrange(PL.shape[0]):
-        by_index = map(lambda x: x if len(x) == 1 else filter(lambda (i, j): j != t, x), by_index)
-
-    if not all(len(x) == 1 for x in by_index):
-        raise Exception("Matrix isn't PL")
-
-    for [(i, j)] in by_index:
-        permutation[i][j] = 1
-
-    return permutation, permutation.T.dot(PL)
-
-
 def triangular_inversion(triang_arg):
     """Counts inversion of a triangular matrix (lower or upper).
 
