@@ -1,8 +1,8 @@
 import numpy as np
 from numpy import dot, float128 as f128
 from math import factorial
-from kaufmann_solver.utils.utils import frobenius_norm, euclid_vector_norm, max_pseudo_norm
-from kaufmann_solver.bunch_kaufmann import bunch_kaufman
+from kaufmann_solver.utils.utils import frobenius_norm, euclid_vector_norm, max_pseudo_norm, relative_error
+from kaufmann_solver.bunch_kaufmann import bunch_kaufman, bunch_kaufman_flipper
 from kaufmann_solver.linear_solver import symmetric_system_solve
 from scipy import sparse
 
@@ -57,9 +57,11 @@ def extended_factorization_test(mtx):
     res.close()
 
 
-def extended_linear_solve_test():
+def extended_linear_solve_hilbert_test(max_size=50):
+    if max_size < 11:
+        max_size = 11
     res = open("linear_res.txt", "w")
-    for i in xrange(10, 100, 1):
+    for i in xrange(10, max_size, 1):
         test_solution = np.ones(i, dtype=f128)
         h = np.array(hilb(i), dtype=f128)
         free_values = dot(h, test_solution)
@@ -69,8 +71,14 @@ def extended_linear_solve_test():
         x_without_regularize = symmetric_system_solve(h, free_values, regularize=False)
         res.write(str(euclid_vector_norm(x_without_regularize - test_solution)))
         res.write('\t\t')
+        computed_free_variables = dot(h, x_without_regularize)
+        res.write(str(relative_error(free_values, computed_free_variables)))
+        res.write('\t\t\t')
         x_with_regularize = symmetric_system_solve(h, free_values, regularize=True)
         res.write(str(euclid_vector_norm(x_with_regularize - test_solution)))
+        res.write('\t\t')
+        computed_free_variables = dot(h, x_with_regularize)
+        res.write(str(relative_error(free_values, computed_free_variables)))
         res.write('\n')
 
 
@@ -90,6 +98,40 @@ def factorization_test(mtx):
 
     """
     P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx.copy())
+    if filter(lambda x: x != 1 and x != 2, cell_sizes):
+        raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
+    if not np.array_equal(L, np.tril(L)):
+        raise Exception('Bunch-Kaufman algo must make lower triangular matrix')
+    diags = [1,0,-1]
+    T = sparse.spdiags(tridiagonal, diags, mtx.shape[0], mtx.shape[0], format='csc').todense()
+    assembled_result = dot(dot(dot(dot(P, L), T), np.matrix(L).getH()), P.T)
+    boundline()
+    print 'This is Bunch-Kaufman test.'
+    print 'Original matrix:'
+    print np.matrix(mtx)
+    boundline()
+    print 'Assembled matrix'
+    print np.matrix(assembled_result)
+    boundline()
+    print 'Factors:'
+    print 'P:'
+    print P
+    boundline()
+    print 'L:'
+    print L
+    boundline()
+    print 'Tridiagonal:'
+    print T
+    boundline()
+    print 'Frobenius norm of difference:'
+    print frobenius_norm(mtx - assembled_result)
+    print 'Maximum difference of elements:'
+    print max_pseudo_norm(mtx - assembled_result)
+    boundline()
+
+
+def flipper_test(mtx):
+    P, L, cell_sizes, tridiagonal = bunch_kaufman_flipper(mtx)
     if filter(lambda x: x != 1 and x != 2, cell_sizes):
         raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
     if not np.array_equal(L, np.tril(L)):

@@ -47,35 +47,6 @@ def relative_error(original_vector, computed_vector):
     return euclid_vector_norm(original_vector - computed_vector) / euclid_vector_norm(original_vector)
 
 
-def transposition_matrix(size, i, j):
-    """Creates transposition matrix of given size with given row and column transposition indices.
-
-    Args:
-        size (int): size of matrix
-        i (int): row index of transposition
-        j (int): column index of transposition
-
-    Returns:
-        np.array: transposition matrix
-
-    Raises:
-        Exception: An error occurred while passing size <= 0
-        Exception: An error occurred while passing i >= size
-        Exception: An error occurred while passing j >= size
-    """
-    if size <= 0:
-        raise Exception('given non-positive size, expected positive')
-    if i >= size:
-        raise Exception('given row index (' + str(i) + ') is out of size of matrix (' + str(size) + ')')
-    if j >= size:
-        raise Exception('given column index (' + str(j) + ') is out of size of matrix (' + str(size) + ')')
-    permutation = I(size)
-    if i != j:
-        permutation[i, j], permutation[i, i] = permutation[i, i], permutation[i, j]
-        permutation[j, i], permutation[j, j] = permutation[j, j], permutation[j, i]
-    return permutation
-
-
 def frobenius_norm(matrix):
     """Counts Frobenius norm of a given matrix.
 
