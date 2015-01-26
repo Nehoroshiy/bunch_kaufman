@@ -52,7 +52,7 @@ def conjugate_gradients_pract(A, b, x0, tolerance=1e-17):
         r -= mu * w
         ro_m = ro_c
         ro_c = dot(r, r)
-        if k > 50000:
+        if k > 100000:
             break
 
     return x, k
@@ -80,3 +80,22 @@ def preconditioned_conjugate_gradients_diag(A, b, x0, tolerance=1e-17):
         z_prev = z
         z = M * r
     return x, k
+
+
+def conjgrad(A,b,x_origin):
+    x = x_origin.copy()
+    r = b - dot(A, x)
+    p = r
+    rsold = dot(r, r)
+
+    for i in xrange(1, 1000000):
+        Ap = dot(A, p)
+        alpha = rsold / dot(p, Ap)
+        x += alpha*p
+        r -= alpha*Ap
+        rsnew = dot(r, r)
+        if sqrt(rsnew) < 1e-10:
+              break
+        p = r + rsnew / rsold * p
+        rsold = rsnew
+    return x

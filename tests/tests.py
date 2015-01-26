@@ -2,7 +2,7 @@ import numpy as np
 from numpy import dot, float128 as f128, identity as I, tril
 from math import factorial
 from kaufmann_solver.utils.utils import frobenius_norm, euclid_vector_norm, max_pseudo_norm, relative_error
-from kaufmann_solver.bunch_kaufmann import bunch_kaufman
+from kaufmann_solver.bunch_kaufmann import bunch_kaufman, bunch_kaufman_exact
 from kaufmann_solver.linear_solver import symmetric_system_solve, linear_cholesky_solve
 from kaufmann_solver.utils.bunch_kaufman_utils import exchange_rows, exchange_columns
 from kaufmann_solver.cholesky import cholesky_diagonal
@@ -65,27 +65,22 @@ def extended_factorization_test(mtx):
     res.close()
 
 
-def extended_linear_solve_hilbert_test(max_size=50):
+def extended_linear_solve_hilbert_test(max_size=50, dtype=np.float64, trusty=False, precond=False, refinement=False):
+    dtype=np.array([1], dtype=dtype).dtype
     if max_size < 11:
         max_size = 11
-    res = open("linear_res.txt", "w")
+    res = open("linear_res_" + str(dtype) + "_trusty_" + str(trusty) + "_precond_" + str(precond) + "_ref_" + str(refinement) + ".txt", "w")
+    res.write('HILB DIM:\t dx/x[' + str(dtype) + '] \t db/b[' + str(dtype) + ']\n')
     for i in xrange(10, max_size, 1):
-        test_solution = np.ones(i, dtype=f128)
-        h = np.array(hilb(i), dtype=f128)
+        test_solution = np.ones(i, dtype=dtype)
+        h = np.array(hilb(i), dtype=dtype)
         free_values = dot(h, test_solution)
-        res.write('hilb size:')
         res.write(str(i))
         res.write('\t\t')
-        x_without_regularize = symmetric_system_solve(h, free_values, trusty=False)
-        res.write(str(euclid_vector_norm(x_without_regularize - test_solution)))
-        res.write('\t\t')
-        computed_free_variables = dot(h, x_without_regularize)
-        res.write(str(relative_error(free_values, computed_free_variables)))
-        res.write('\t\t\t')
-        x_with_regularize = symmetric_system_solve(h, free_values, trusty=True)
-        res.write(str(euclid_vector_norm(x_with_regularize - test_solution)))
-        res.write('\t\t')
-        computed_free_variables = dot(h, x_with_regularize)
+        x = symmetric_system_solve(h, free_values, trusty=trusty, precondition=precond, refinement=refinement)
+        res.write(str(relative_error(test_solution, x)))
+        res.write('\t')
+        computed_free_variables = dot(h, x)
         res.write(str(relative_error(free_values, computed_free_variables)))
         res.write('\n')
 
@@ -105,7 +100,7 @@ def factorization_test(mtx, regularize=False):
         Exception: An error occurred when Bunch-Kaufman doesn't work properly.
 
     """
-    P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx.copy(), regularize=regularize)
+    P, L, cell_sizes, tridiagonal = bunch_kaufman_exact(mtx.copy(), regularize=regularize)
     if filter(lambda x: x != 1 and x != 2, cell_sizes):
         raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
     if not np.array_equal(L, np.tril(L)):
@@ -135,6 +130,8 @@ def factorization_test(mtx, regularize=False):
     print frobenius_norm(mtx - assembled_result)
     print 'Maximum difference of elements:'
     print max_pseudo_norm(mtx - assembled_result)
+    print 'Tridiagonal'
+    print tridiagonal
     boundline()
 
 
