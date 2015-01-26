@@ -5,19 +5,22 @@ from kaufmann_solver.bunch_kaufmann import bunch_kaufman
 from kaufmann_solver.utils.iterative_refinement import conjugate_gradients_pract
 from kaufmann_solver.utils.utils import euclid_vector_norm
 from kaufmann_solver.utils.bunch_kaufman_utils import tridiagonal_inversion, tridiagonal_dot
+import tests.tests
 from scipy import linalg, sparse
 
 
-def symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha=(1. + sqrt(17)) / 8):
+def symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha=(1. + sqrt(17)) / 8, trusty=True):
     z = linalg.solve_triangular(L, P.T.dot(free_values), lower=True, unit_diagonal=True)
     #print tridiagonal
     w = linalg.solve_banded((1, 1), tridiagonal, z)
-    #tri_inv = tridiagonal_inversion(tridiagonal, cell_sizes, dtype=f128)
-    #w1 = tridiagonal_dot(tri_inv, z, dtype=f128)
+    tri_inv = tridiagonal_inversion(tridiagonal, cell_sizes, dtype=f128)
+    w1 = tridiagonal_dot(tri_inv, z, dtype=f128)
     #print '-'*80
     #print 'difference between auto and manual tridiagonal solve:'
     #print euclid_vector_norm(w1 - w)
     #print '-'*80
+    if trusty:
+        w = w1
     y = linalg.solve_triangular(np.matrix(L, dtype=f128).getH(), w, lower=False, unit_diagonal=True)
     return P.dot(y)
 
@@ -27,7 +30,25 @@ def isPSD(A, tol=1e-8):
   return np.all(E > -tol)
 
 
-def symmetric_system_solve(system_matrix_origin, free_values_origin, alpha=(1. + sqrt(17)) / 8, precondition=False, regularize=False, refinement=False):
+def max_abs(v):
+    return max(abs(v))
+
+
+def linear_cholesky_solve(LD, P, free_values_original):
+    n = LD.shape[0]
+    free_values = np.array(free_values_original, dtype=f128)
+    for (idx1, idx2) in P:
+        free_values[[idx1, idx2]] = free_values[[idx2, idx1]]
+    w = linalg.solve_triangular(np.tril(LD, -1) + np.identity(n), free_values, lower=True, unit_diagonal=True)
+    diag_inverse = 1.0 / LD.diagonal()
+    y = diag_inverse * w
+    z = linalg.solve_triangular(np.triu(LD.T, 1) + np.identity(n), y, lower=False, unit_diagonal=True)
+    for (idx1, idx2) in reversed(P):
+        z[[idx1, idx2]] = z[[idx2, idx1]]
+    return z
+
+
+def symmetric_system_solve(system_matrix_origin, free_values_origin, alpha=(1. + sqrt(17)) / 8, precondition=False, regularize=False, refinement=False, trusty=True):
     """Solves linear system with Bunch-Kaufman factorization and simple error correction.
 
         We solve system Ax = b, and take x_computed. Then, we find err = (b - A*x_computed),
@@ -48,7 +69,7 @@ def symmetric_system_solve(system_matrix_origin, free_values_origin, alpha=(1. +
         Exception: An error occurred while passing singular matrix
     """
     n = system_matrix_origin.shape[0]
-    if precondition and isPSD(system_matrix_origin):
+    if precondition:
         diag_l = np.zeros(n)
         diag_r = np.zeros(n)
         for i in xrange(n):
@@ -63,13 +84,14 @@ def symmetric_system_solve(system_matrix_origin, free_values_origin, alpha=(1. +
             free_values[i] *= diag_l[i]
         #free_values = dot(diag_l, free_values_origin)
         mtx = (mtx + mtx.T) / 2
+        #tests.tests.factorization_test(mtx, False)
         P, L, cell_sizes, tridiagonal = bunch_kaufman(mtx, alpha, regularize=regularize)
-        computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha)
+        computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values, alpha, trusty=trusty)
         for i in xrange(n):
             computed_result[i] *= diag_r[i]
     else:
         P, L, cell_sizes, tridiagonal = bunch_kaufman(system_matrix_origin, alpha, regularize=regularize)
-        computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values_origin, alpha)
+        computed_result = symmetric_solve_simple(P, L, tridiagonal, cell_sizes, free_values_origin, alpha, trusty=trusty)
     if refinement:
         diags = [1,0,-1]
         T = sparse.spdiags(tridiagonal, diags, P.shape[0], P.shape[0], format='csc').todense()
@@ -77,3 +99,18 @@ def symmetric_system_solve(system_matrix_origin, free_values_origin, alpha=(1. +
         x1, k = conjugate_gradients_pract(np.array(assembled_result, dtype=f128), free_values, computed_result)
         computed_result = x1
     return computed_result
+
+
+def bunch_kaufman_symmetric_solve(P, L, tridiagonal, cell_sizes, free_values):
+    z = linalg.solve_triangular(L, P.T.dot(free_values), lower=True, unit_diagonal=True)
+    w = linalg.solve_banded((1, 1), tridiagonal, z)
+    y = linalg.solve_triangular(np.matrix(L).getH(), w, lower=False, unit_diagonal=True)
+    return P.dot(y)
+
+
+def bunch_kaufman_symmetric_solve(P, L, tridiagonal, cell_sizes, free_values, dtype=np.float64):
+    z = linalg.solve_triangular(L, P.T.dot(free_values), lower=True, unit_diagonal=True)
+    tri_inv = tridiagonal_inversion(tridiagonal, cell_sizes, dtype=dtype)
+    w = tridiagonal_dot(tri_inv, z, dtype=dtype)
+    y = linalg.solve_triangular(np.matrix(L, dtype=dtype).getH(), w, lower=False, unit_diagonal=True)
+    return P.dot(y)

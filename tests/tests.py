@@ -1,10 +1,18 @@
 import numpy as np
-from numpy import dot, float128 as f128
+from numpy import dot, float128 as f128, identity as I, tril
 from math import factorial
 from kaufmann_solver.utils.utils import frobenius_norm, euclid_vector_norm, max_pseudo_norm, relative_error
-from kaufmann_solver.bunch_kaufmann import bunch_kaufman, bunch_kaufman_flipper
-from kaufmann_solver.linear_solver import symmetric_system_solve
+from kaufmann_solver.bunch_kaufmann import bunch_kaufman
+from kaufmann_solver.linear_solver import symmetric_system_solve, linear_cholesky_solve
+from kaufmann_solver.utils.bunch_kaufman_utils import exchange_rows, exchange_columns
+from kaufmann_solver.cholesky import cholesky_diagonal
 from scipy import sparse
+
+from scipy.sparse.linalg import arpack
+
+def isPSD(A, tol = 1e-8):
+    vals, vecs = arpack.eigsh(A, k=2, which='BE') # return the ends of spectrum of A
+    return np.all(vals > -tol)
 
 # hilbert matrix (Hij = 1/(i + j - 1))
 
@@ -68,13 +76,13 @@ def extended_linear_solve_hilbert_test(max_size=50):
         res.write('hilb size:')
         res.write(str(i))
         res.write('\t\t')
-        x_without_regularize = symmetric_system_solve(h, free_values, regularize=False)
+        x_without_regularize = symmetric_system_solve(h, free_values, trusty=False)
         res.write(str(euclid_vector_norm(x_without_regularize - test_solution)))
         res.write('\t\t')
         computed_free_variables = dot(h, x_without_regularize)
         res.write(str(relative_error(free_values, computed_free_variables)))
         res.write('\t\t\t')
-        x_with_regularize = symmetric_system_solve(h, free_values, regularize=True)
+        x_with_regularize = symmetric_system_solve(h, free_values, trusty=True)
         res.write(str(euclid_vector_norm(x_with_regularize - test_solution)))
         res.write('\t\t')
         computed_free_variables = dot(h, x_with_regularize)
@@ -130,17 +138,80 @@ def factorization_test(mtx, regularize=False):
     boundline()
 
 
-def flipper_test(mtx):
-    P, L, cell_sizes, tridiagonal = bunch_kaufman_flipper(mtx)
-    if filter(lambda x: x != 1 and x != 2, cell_sizes):
-        raise Exception('Cell sizes in Bunch-Kaufman must be 1-2')
-    if not np.array_equal(L, np.tril(L)):
-        raise Exception('Bunch-Kaufman algo must make lower triangular matrix')
-    diags = [1,0,-1]
-    T = sparse.spdiags(tridiagonal, diags, mtx.shape[0], mtx.shape[0], format='csc').todense()
-    assembled_result = dot(dot(dot(dot(P, L), T), np.matrix(L).getH()), P.T)
+
+
+
+def linear_cholesky(mtx, precondition=False):
+    n = mtx.shape[0]
+    mtx_precision = np.array(mtx, dtype=f128)
+    original_solve_precision = np.zeros(mtx.shape[0], dtype=f128) + 1
+    free_values_origin = dot(mtx_precision, original_solve_precision)
+    """print 'Is matrix PSD?'
+    #LD = np.linalg.cholesky(mtx)
+    #P = []
+    #for i in xrange(n):
+    #    LD_view = LD[i:, i:]
+    #    j = argmax(LD)
+    print 'LD'
+    print LD
+    print '-'*80
+    assembled_result = dot(LD, LD.T)
+    print 'assembled result:'
+    print assembled_result
+    print 'matrix:'
+    print mtx"""
+    if precondition:
+        diag_l = np.zeros(n)
+        diag_r = np.zeros(n)
+        for i in xrange(n):
+            diag_l[i] = 1.0 / euclid_vector_norm(mtx_precision[:, i])
+            diag_r[i] = 1.0 / euclid_vector_norm(mtx_precision[i])
+        mtx = np.array(mtx_precision, dtype=f128)
+        free_values = np.array(free_values_origin, dtype=f128)
+        for i in xrange(n):
+            mtx_precision[i] *= diag_l[i]
+            free_values[i] *= diag_l[i]
+        for i in xrange(n):
+            mtx_precision[:, i] *= diag_r[i]
+        #free_values = dot(diag_l, free_values_origin)
+        mtx_precision = (mtx_precision + mtx_precision.T) / 2
+        #tests.tests.factorization_test(mtx, False)
+        LD, P = cholesky_diagonal(mtx_precision)
+        computed_result = linear_cholesky_solve(LD, P, free_values)
+        for i in xrange(n):
+            computed_result[i] *= diag_r[i]
+    else:
+        free_values = free_values_origin
+        LD, P = cholesky_diagonal(mtx_precision)
+        computed_result = linear_cholesky_solve(LD, P, free_values)
+    print 'original x:'
+    print original_solve_precision
+    print 'computed x:'
+    print computed_result
+    print '-'*80
+    print 'free_values:'
+    print free_values_origin
+    print 'check free values:'
+    check_values = dot(mtx_precision, computed_result / diag_r) / diag_l
+    print check_values
+
+
+def cholesky_test(mtx):
+    n = mtx.shape[0]
+    LD, P = cholesky_diagonal(mtx)
+    D = np.zeros([n, n], dtype=f128)
+    diag = LD.diagonal()
+    np.fill_diagonal(D, diag)
+    L = tril(LD, -1) + I(n)
+    assembled_result = dot(dot(L, D), L.T)
+    #assembled_result = dot(dot(dot(P, dot(L, D)), L.T), P.T)
+    for (idx1, idx2) in reversed(P):
+        exchange_rows(assembled_result, idx1, idx2)
+
+    for (idx1, idx2) in reversed(P):
+        exchange_columns(assembled_result, idx1, idx2)
     boundline()
-    print 'This is Bunch-Kaufman test.'
+    print 'This is Cholesky test.'
     print 'Original matrix:'
     print np.matrix(mtx)
     boundline()
@@ -152,10 +223,10 @@ def flipper_test(mtx):
     print P
     boundline()
     print 'L:'
-    print L
+    print tril(LD, -1) + I(n)
     boundline()
-    print 'Tridiagonal:'
-    print T
+    print 'Diagonal:'
+    print D
     boundline()
     print 'Frobenius norm of difference:'
     print frobenius_norm(mtx - assembled_result)

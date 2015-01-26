@@ -253,7 +253,7 @@ def bunch_kaufman(mtx_origin, alpha=(1. + sqrt(17)) / 8, regularize=False, regul
                     swap_indices = (0, idx)
                 else:
                     n_k = 2
-                    assert idx != j_idx, 'PIZDEC'
+                    assert idx != j_idx, 'please check your factorization. This indices MUST be different'
                     swap_indices = (1, idx)
         if n_k == 2:
             exchange_rows(mtx_view, 0, j_idx)
@@ -363,91 +363,4 @@ def bunch_kaufman(mtx_origin, alpha=(1. + sqrt(17)) / 8, regularize=False, regul
         #for i in xrange(n):
         #    tridiagonal[1, i] *= 1.5
 
-    return P, L, cell_sizes, tridiagonal
-
-
-def bunch_kaufman_flipper(mtx_origin, alpha=(1. + sqrt(17)) / 8, regularize=False, regularize_coeff=1e-4):
-    mtx = np.array(mtx_origin, dtype=f128)
-    n = mtx.shape[0]
-    tridiagonal = np.zeros([3, n], dtype=f128)
-    sum_left = 0
-    sum_right = 0
-    cell_sizes_left = []
-    cell_sizes_right = []
-    PL = I(n, dtype=f128)
-    flip = False
-    while sum_left < n - sum_right:
-        m = n - sum_left - sum_right
-        mtx_view = mtx[sum_left: n - sum_right, sum_left: n - sum_right]
-        if flip:
-            f_idx = m - 1
-            s_idx = m - 2
-        else:
-            f_idx = 0
-            s_idx = 1
-        idx = np.argmax(np.abs(mtx_view.diagonal()))
-        swap_indices = (f_idx, idx)
-        triangular = I(n, dtype=f128)
-        triangular_view = triangular[sum_left: n - sum_right, sum_left: n - sum_right]
-        exchange_rows(mtx_view, swap_indices[0], swap_indices[1])
-        exchange_columns(mtx_view, swap_indices[0], swap_indices[1])
-        exchange_columns(PL, swap_indices[0] + sum_left, swap_indices[1] + sum_left)
-
-        idx = np.argmax(np.abs(mtx_view[:, f_idx]))
-        lambda_val = abs(mtx_view[:, f_idx][idx])
-
-        if abs(mtx_view[f_idx, f_idx]) >= alpha * lambda_val:
-            n_k = 1
-            swap_indices = (f_idx, f_idx)
-        else:
-            testing_column = np.abs(mtx_view[:, idx])
-            testing_column[idx] = 0
-            j_idx = np.argmax(testing_column)
-            sigma_val = testing_column[j_idx]
-
-            if sigma_val * abs(mtx_view[f_idx, f_idx]) >= alpha * lambda_val**2:
-                n_k = 1
-                swap_indices = (f_idx, f_idx)
-            else:
-                if abs(mtx_view[idx][idx]) >= alpha * sigma_val:
-                    n_k = 1
-                    swap_indices = (f_idx, idx)
-                else:
-                    n_k = 2
-                    swap_indices = (s_idx, idx)
-        if n_k == 2:
-            exchange_rows(mtx_view, f_idx, j_idx)
-            exchange_columns(mtx_view, f_idx, j_idx)
-            exchange_columns(PL, sum_left + f_idx, sum_left + j_idx)
-        exchange_rows(mtx_view, swap_indices[0], swap_indices[1])
-        exchange_columns(mtx_view, swap_indices[0], swap_indices[1])
-        exchange_columns(PL, sum_left + swap_indices[0], sum_left + swap_indices[1])
-
-        T_k = mtx_view[0:n_k, 0:n_k]
-        if n - sum_right <= sum_left + n_k:
-            if n_k == 1:
-                tridiagonal[1, sum_left + f_idx] = T_k[0, 0]
-            else:
-                tridiagonal[1, sum_left + f_idx], tridiagonal[1, sum_left + s_idx] = T_k[1, 1], T_k[0, 0]
-                tridiagonal[0, sum_left + f_idx] = T_k[0, 1]
-                tridiagonal[2, sum_left + s_idx] = T_k[1, 0]
-            cell_sizes_left.append(n_k)
-            cell_sizes_right.reverse()
-            cell_sizes = cell_sizes_left + cell_sizes_right
-            break
-        T_k_inverse = inverse_1_2(T_k, dtype=f128)
-        if flip:
-            B_k = mtx_view[0: m - n_k, m - n_k: m]
-            triangular_view[0: m - n_k, m - n_k: m] = dot(-B_k, T_k_inverse)
-            sum_right += n_k
-            cell_sizes_right.append(n_k)
-        else:
-            B_k = mtx_view[n_k: m, 0: n_k]
-            triangular_view[n_k: m, 0: n_k] = dot(-B_k, T_k_inverse)
-            sum_left += n_k
-            cell_sizes_left.append(n_k)
-        mtx_view[:, :] = dot(dot(triangular_view, mtx_view), np.matrix(triangular_view).getH())[:,:]
-        PL = dot(PL, -triangular + 2*I(n))
-        flip = not flip
-    P, L = separate_permutation(PL, dtype=f128)
     return P, L, cell_sizes, tridiagonal
