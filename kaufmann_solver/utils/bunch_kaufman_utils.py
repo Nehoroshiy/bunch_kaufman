@@ -1,6 +1,7 @@
 import numpy as np
 from numpy import float64 as f64
 import bigfloat as bf
+from numpy import arange
 
 
 EXACT_PRECISION = 500
@@ -109,7 +110,7 @@ def exchange_columns(matrix, idx1, idx2):
 def partial_left_one(matrix, vector, index):
     n = matrix.shape[0]
     multiplier = matrix[index]
-    for i in xrange(index + 1, n, 1):
+    for i in range(index + 1, n, 1):
         matrix[i] += vector[i - index - 1] * multiplier
 
 
@@ -128,7 +129,7 @@ def partial_left_two(matrix, v1, v2, i1, i2):
     mul1 = matrix[i1]
     mul2 = matrix[i2]
     low_bound = 2
-    for i in xrange(low_bound, n, 1):
+    for i in arange(low_bound, n, 1):
         matrix[i] += v1[i - low_bound] * mul1 + v2[i - low_bound] * mul2
 
 
@@ -148,7 +149,7 @@ def partial_left_two_exact(matrix, v1, v2, i1, i2):
 def partial_right_one(matrix, vector, index):
     n = matrix.shape[0]
     multiplier = matrix[:, index]
-    for i in xrange(n):
+    for i in arange(n):
         matrix[i, index + 1:] += multiplier[i] * vector
 
 
@@ -167,7 +168,7 @@ def partial_right_two(matrix, v1, v2, i1, i2):
     mul1 = matrix[:, i1]
     mul2 = matrix[:, i2]
     low_bound = 2
-    for i in xrange(n):
+    for i in arange(n):
         matrix[i, low_bound:] += mul1[i] * v1 + mul2[i] * v2
 
 
@@ -289,3 +290,37 @@ def separate_permutation(PL, dtype=np.float64):
     #    print L
 
     return permutation, L
+
+
+def separate_permutation_fast(PL, dtype=np.float64):
+    n = PL.shape[0]
+    permutation = np.zeros(PL.shape, dtype=dtype)
+    for i in arange(n):
+        real_index = 0
+        for j in arange(n-1, -1, -1):
+            if (np.abs(PL[i, j]) == 1.):
+                permutation[i, j] = 1
+                break
+    return permutation, np.dot(permutation.T, PL)
+
+"""std::vector<int> distinct_permutation_and_lower_triangular(double *PL, size_t N) {
+    print_matrix(PL, N, "PL initial");
+    Matrix PL_M = Matrix(PL, N);
+    auto permutation = std::vector<int>(N);
+    auto permutation_inverted = std::vector<int>(N);
+    for (size_t i = 0; i < N; i++) {
+        auto real_index = 0;
+        for (int j = N-1; j >= 0; j--) {
+            if (fabs(PL_M[i][j] - 1.0) < TOLERANCE) {
+                real_index = j;
+                //std::cout << i << ", " <<  real_index << std::endl;
+                break;
+            }
+        }
+        permutation[real_index] = i;
+        permutation_inverted[i] = real_index;
+    }
+    PL_M.permute_rows(permutation_inverted);
+    PL_M.reject();
+    return permutation;
+}"""

@@ -35,26 +35,23 @@ def conjugate_gradients_pract(A, b, x0, tolerance=1e-17):
     k = 0
     x = x0.copy()
     r = b - dot(A, x)
-    ro_c = dot(r, r)
+    ro_cur = dot(r, r)
     delta = tolerance * euclid_vector_norm(b)
     p = 0
-    ro_m = 0
-    while sqrt(ro_c) >= delta:
+    ro_prev = 0
+    while sqrt(ro_cur) >= delta:
         k += 1
         if k == 1:
             p = r
         else:
-            tau = ro_c / ro_m
+            tau = ro_cur / ro_prev
             p = r + tau * p
         w = dot(A, p)
-        mu = ro_c / dot(p, w)
+        mu = ro_cur / dot(p, w)
         x += mu * p
         r -= mu * w
-        ro_m = ro_c
-        ro_c = dot(r, r)
-        if k > 100000:
-            break
-
+        ro_prev = ro_cur
+        ro_cur = dot(r, r)
     return x, k
 
 

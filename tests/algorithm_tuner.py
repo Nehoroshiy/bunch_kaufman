@@ -1,5 +1,7 @@
 from kaufmann_solver.utils.utils import relative_error
-from kaufmann_solver.bunch_kaufmann import symmetric_system_solve
+from kaufmann_solver.linear_solver import symmetric_system_solve
+from kaufmann_solver.bunch_kaufmann import bunch_kaufman
+from kaufmann_solver.utils.utils import frobenius_norm
 from tests import hilb
 from numpy import dot, zeros
 from mpl_toolkits.mplot3d import axes3d
@@ -7,6 +9,9 @@ import matplotlib.pyplot as plt
 from matplotlib import cm
 from math import log
 from operator import itemgetter
+import numpy as np
+from numpy import float128 as f128
+import scipy.sparse as sparse
 
 
 def hilbert_matrix_test(max_size):
@@ -65,3 +70,35 @@ def vizualize_bunch_kaufman_tune(matrix_orig, n):
 
     plt.show()
 
+
+def count_optimal_alpha(size, lattice_size=1000):
+    import os
+    os.chdir('alpha_test')
+    res = open(str(size) + ":" + str(lattice_size), "w")
+    h = hilb(size, dtype=f128)
+    original_result = zeros(size, dtype=f128) + 1
+    x = np.linspace(0 + 1. / lattice_size, 1. - 1. / lattice_size, lattice_size)
+    frame = np.zeros([4, lattice_size])
+    frame[0] = x
+    res.write('alpha\tdelta\tdx\tdb\n')
+    for (i, alpha) in enumerate(x):
+        res.write(str(alpha) + '\t')
+        free_values = dot(h, original_result)
+
+        P, L, cell_sizes, tridiagonal = bunch_kaufman(h, alpha)
+        diags = [1,0,-1]
+        T = np.array(sparse.spdiags(tridiagonal, diags, size, size, format='csc').todense(), dtype=np.float128)
+        assembled_result = dot(dot(dot(dot(P, L), T), np.array(np.matrix(L).getH())), P.T)
+        frame[1, i] = frobenius_norm(h - assembled_result)
+        res.write(str(frame[1, i]) + '\t')
+
+        x = symmetric_system_solve(h, free_values)
+        frame[2, i] = relative_error(original_result, x)
+        res.write(str(frame[2, i]) + '\t')
+
+        computed_free_variables = dot(h, x)
+        frame[3, i] = relative_error(free_values, computed_free_variables)
+        res.write(str(frame[3, i]) + '\n')
+    res.close()
+    os.chdir('..')
+    return frame
